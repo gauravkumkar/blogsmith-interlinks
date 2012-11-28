@@ -1,0 +1,17 @@
+{
+  "name": "Interlinks",
+  "description": "A Blogsmith plugin",
+  "version": "0.0.2",
+  "author": "Nate Eagle & Shawn Carnell",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aol/blogsmith-interlinks"
+  },
+  "engines": {
+    "node": ">= 0.6.0"
+  },
+  "devDependencies": {
+    "connect": "~2.6.1",
+    "grunt": "~0.3.15"
+  }
+}
