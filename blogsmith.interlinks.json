@@ -1,0 +1,29 @@
+{
+  "name": "interlinks",
+  "title": "Interlinks",
+  "description": "A Blogsmith plugin for adding relevant links to internal content to Blogsmith posts.",
+  "version": "0.1.0",
+  "homepage": "https://github.com/aol/blogsmith-interlinks",
+  "author": {
+    "name": "Nate Eagle and Shawn Carnell",
+    "email": "nate.eagle@teamaol.com, shawn.carnell@teamaol.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:aol/blogsmith-interlinks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aol/blogsmith-interlinks/issues"
+  },
+  "licenses": [
+    {
+      "type": "BSD",
+      "url": "https://github.com/aol/liveblog-widget/blob/master/LICENSE-BSD"
+    }
+  ],
+  "dependencies": {
+    "jquery": "1.4.4"
+  },
+  "keywords": []
+}
+

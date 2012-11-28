@@ -1,4 +1,4 @@
-/*global BS:true */
+/*global blogsmith:true, BS:true, _blog_name:true */
 (function ($, blogsmith) {
 
   // Missive
@@ -60,30 +60,30 @@
   $(document).delegate('#aol-interlink', 'click', function (e) {
 
     var collectTaxonomyCodes, addLinks, submitContents, startLoading, endLoading, error, errorTimeout, $this = $(this),
-    button = $this.children('a'),
-    plugin = $this.parent(),
-    title = blogsmith.getTitle(),
-    matches = 0,
-    total = 0,
-    name = _blog_name,
-    taxonomyCodes = [],
-    currentTaxonomyCode = 0,
-    matchIndex = {},
-    taxonomyCallsOutstanding = 0,
-    postContents = blogsmith.getContents(),
-    postContinuedContents = blogsmith.getContinuedContents(),
-    newContents = $('<div/>', {
-      html: postContents
-    }),
-    newContinuedContents = $('div/>', {
-      html: postContinuedContents
-    });
-    loadingImage = $('<img />', {
+      button = $this.children('a'),
+      plugin = $this.parent(),
+      title = blogsmith.getTitle(),
+      matches = 0,
+      total = 0,
+      name = _blog_name,
+      taxonomyCodes = [],
+      currentTaxonomyCode = 0,
+      matchIndex = {},
+      taxonomyCallsOutstanding = 0,
+      postContents = blogsmith.getContents(),
+      postContinuedContents = blogsmith.getContinuedContents(),
+      newContents = $('<div/>', {
+        html: postContents
+      }),
+      newContinuedContents = $('div/>', {
+        html: postContinuedContents
+      }),
+      loadingImage = $('<img />', {
 
-      src: 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/images/loading.gif?v4'
-    }).css({
-      margin: '4px 5px 4px'
-    });
+        src: 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/images/loading.gif?v4'
+      }).css({
+        margin: '4px 5px 4px'
+      });
 
     // Send contents of post to API
     submitContents = function (proxy, name, title, contents, continuedContents, settings) {
@@ -134,7 +134,9 @@
         length = meta.length,
         linked = false,
         pattern = matchIndex[data.getNodeResponse.node.ID].text,
-        match = new RegExp('\\b' + pattern + '\\b', 'g');
+        match = new RegExp('\\b' + pattern + '\\b', 'g'),
+        replacement,
+        jwalk;
 
         console.log('INTERLINK PLUGIN - "' + pattern + '" matches taxonomy id ' + meta[currentMeta].ID);
 
@@ -142,32 +144,33 @@
         jQuery.fn.textWalk = function (fn) {
           this.contents().each(jwalk);
 
-          function jwalk() {
+          jwalk = function () {
             var nn = this.nodeName.toLowerCase();
             if (nn === '#text') {
               fn.call(this);
             } else if (this.nodeType === 1 && this.childNodes && this.childNodes[0] && nn !== 'script' && nn !== 'textarea' && nn !== 'a') {
               $(this).contents().each(jwalk);
             }
-          }
+          };
           return this;
         };
 
         var replacenator = function () {
           var span = document.createElement('span');
+
           span.innerHTML = this.nodeValue.replace(match, replacement);
           this.parentNode.insertBefore(span, this);
           this.parentNode.removeChild(this);
         };
 
-        while((currentMeta < length) && !linked) {
+        while ((currentMeta < length) && !linked) {
 
           // TODO:  Searching for the string "url" in a metadata field is pretty lame.  Need to work with Taxo team (Madhu) on getting better results.
           // TODO: There is actually a ranking of which URLs are better than other URLs (should one entity link to more than one URL).  Shawn has asked for the taxo folks to just include the ranking in the results rather than email them to us ad hoc.
           if (meta[currentMeta].metaType.name.toLowerCase().indexOf('url') >= 0) {
 
             // Try to build a valid url.
-            url = meta[currentMeta].metaValue;
+            var url = meta[currentMeta].metaValue;
             if (url.indexOf('http://') < 0) {
               url = 'http://' + meta[currentMeta].metaValue;
             }
@@ -208,6 +211,8 @@
         // FIXME:  This is busted.  Need to investigate.
         $('a.interlink').effect('highlight', 2000);
 
+        var message;
+
         if (matches === 0) {
           message = 'We found no interlinks to suggest.';
         } else if (matches !== total) {
@@ -233,7 +238,7 @@
       // Clear the error timer - we got results!
       clearTimeout(errorTimeout);
 
-      if (data.statusCode != '200') {
+      if (data.statusCode !== '200') {
         // TODO:  Need to report this automatically, perhaps by filing a ticket?
         blogsmith.missive({
           text: 'http://irshield.app.aol.com/rtnt/getTagsFromText returned code (' + data.statusCode + ' - ' + data.statusText + ').  Which is a real bummer.  We suggest trying again later.  If the problem persists, please send a note to central@teamaol.com.'
@@ -259,8 +264,8 @@
         threshold = 0.0,
         hitThreshold = false;
 
-        while((i < length) && !hitThreshold) {
-          if (tags[i].name == 'MATCHTEXT') {
+        while ((i < length) && !hitThreshold) {
+          if (tags[i].name === 'MATCHTEXT') {
             if (tags[i].score > threshold) {
               taxonomyCodes.push({
                 value: tags[i].value,
@@ -282,7 +287,7 @@
           taxonomyCallsOutstanding = taxonomyCodes.length;
           i = taxonomyCallsOutstanding - 1;
 
-          while(i >= 0) {
+          while (i >= 0) {
             // Remember which match text coes with which code so we can find the match text again when we get results back.
             matchIndex[taxonomyCodes[i].id] = {
               text: taxonomyCodes[i].value
