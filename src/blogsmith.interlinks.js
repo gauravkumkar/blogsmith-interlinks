@@ -1,5 +1,10 @@
-/*global blogsmith:true, BS:true, _blog_name:true */
+/*global blogsmith:true, BS:true, _blog_name:true, CKEDITOR:true */
 (function ($, blogsmith) {
+
+  var API_URL;
+
+  // Constants
+  API_URL = 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta';
 
   // Missive
   if (typeof blogsmith.missive !== 'function') {
@@ -39,12 +44,42 @@
     };
   }
 
+  // Create a small textWalk jQuery plugin that walks through a bit of HTML and
+  // stops when it reaches text nodes or script/textarea/anchor tags.
+  if (typeof jQuery.fn.textWalk !== 'function') {
+    jQuery.fn.textWalk = function (fn, args) {
+      var jwalk = function () {
+        var nn = this.nodeName.toLowerCase();
+
+        if (nn === '#text') {
+          if (args) {
+            if ($.isArray(args)) {
+              fn.apply(this, args);
+            } else {
+              fn.call(this, args);
+            }
+          } else {
+            fn.call(this);
+          }
+        } else if (this.nodeType === 1 && this.childNodes && this.childNodes[0] && nn !== 'script' && nn !== 'textarea' && nn !== 'a') {
+          $(this).contents().each(jwalk);
+        }
+      };
+
+      this.contents().each(jwalk);
+
+      return this;
+    };
+  }
+
   // Add custom config settings to CK Editor
   BS.editor.userConfig._all = {
-    contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/css/style.css']
+    //contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/css/style.css']
+    contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://localhost:8000/src/blogsmith.interlinks.css']
   };
 
   // Create button for Interlinks
+  // TODO: Replace with SDK method for adding a tool once it's available
   var interlinksButton = $('<span />', {
     id: 'aol-interlink',
     html: '<a title="Generate interlinks for your post\'s content" href="#">Add Interlinks</a>'
@@ -121,51 +156,52 @@
 
       taxonomyCallsOutstanding--;
 
-      if (data.statusCode !== '200') {
+      if (data.statusCode !== 200) {
         // TODO:  Need to report this automatically, perhaps by filing a ticket?
         blogsmith.missive({
-          text: 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta returned code (' + data.statusCode + ' - ' + data.statusText + ').   Which is a real bummer.  We suggest trying again later.  If the problem persists, please send a note to central@teamaol.com.'
+          text: API_URL + ' returned code (' + data.statusCode + ' - ' + data.statusText + ').   Which is a real bummer.  We suggest trying again later.  If the problem persists, please send a note to <a href="mailto:central@teamaol.com">central@teamaol.com</a>.'
         });
       } else if ($.type(data.getNodeResponse) !== "undefined") {
 
         // TODO:  Better validation.  Make sure these fields are present before accessing them.
-        var meta = data.getNodeResponse.node.meta,
-        currentMeta = 0,
-        length = meta.length,
-        linked = false,
-        pattern = matchIndex[data.getNodeResponse.node.ID].text,
-        match = new RegExp('\\b' + pattern + '\\b', 'g'),
-        replacement,
-        jwalk;
+        var meta, currentMeta, length, linked, pattern, match, replacement, replacenator;
+
+        meta = data.getNodeResponse.node.meta;
+        currentMeta = 0;
+        length = meta.length;
+        linked = false;
+        pattern = matchIndex[data.getNodeResponse.node.ID].text;
+        match = new RegExp('\\b' + pattern + '\\b', 'g');
 
         console.log('INTERLINK PLUGIN - "' + pattern + '" matches taxonomy id ' + meta[currentMeta].ID);
 
-        // See http://jsfiddle.net/v2yp5/4/ and http://stackoverflow.com/questions/6012163/whats-a-good-alternative-to-html-rewriting/6012345#6012345
-        jQuery.fn.textWalk = function (fn) {
-          this.contents().each(jwalk);
+        /*
+         * @param {string} replacement
+         * @see http://jsfiddle.net/v2yp5/4/
+         * @see http://stackoverflow.com/questions/6012163/whats-a-good-alternative-to-html-rewriting/6012345#6012345
+         */
+        replacenator = function (replacement) {
+          // We can't just change the text in the text node because our new
+          // content contains HTML. Instead, we create a blank span tag and
+          // populate its HTML with our new content.
+          var $span;
 
-          jwalk = function () {
-            var nn = this.nodeName.toLowerCase();
-            if (nn === '#text') {
-              fn.call(this);
-            } else if (this.nodeType === 1 && this.childNodes && this.childNodes[0] && nn !== 'script' && nn !== 'textarea' && nn !== 'a') {
-              $(this).contents().each(jwalk);
-            }
-          };
-          return this;
-        };
+          $span = $('<span>', {
+            html: this.nodeValue.replace(match, replacement)
+          });
 
-        var replacenator = function () {
-          var span = document.createElement('span');
-
-          span.innerHTML = this.nodeValue.replace(match, replacement);
-          this.parentNode.insertBefore(span, this);
+          // Insert our new content
+          $span.insertBefore(this);
+          // Remove the old content
           this.parentNode.removeChild(this);
+
+          // Unwrap the blank span from around our new content
+          $span.contents().unwrap();
         };
 
         while ((currentMeta < length) && !linked) {
 
-          // TODO:  Searching for the string "url" in a metadata field is pretty lame.  Need to work with Taxo team (Madhu) on getting better results.
+          // TODO: Searching for the string "url" in a metadata field is pretty lame.  Need to work with Taxo team (Madhu) on getting better results.
           // TODO: There is actually a ranking of which URLs are better than other URLs (should one entity link to more than one URL).  Shawn has asked for the taxo folks to just include the ranking in the results rather than email them to us ad hoc.
           if (meta[currentMeta].metaType.name.toLowerCase().indexOf('url') >= 0) {
 
@@ -176,17 +212,18 @@
             }
 
             // console.log('INTERLINK PLUGIN - found URL: ' + url);
+            // TODO: Provide some commenting on this giant regex - what does it do?
             if (/^([a-z]([a-z]|\d|\+|-|\.)*):(\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?((\[(|(v[\da-f]{1,}\.(([a-z]|\d|-|\.|_|~)|[!\$&'\(\)\*\+,;=]|:)+))\])|((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=])*)(:\d*)?)(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*|(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)){0})(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(url)) {
 
-              matches++;
+              matches += 1;
               replacement = "<a class='interlink' onclick=\"bN.set(\'blogsmith_interlink\', \'1\', true); bN.set(\'blogsmith_taxo_id\', \'" + meta[currentMeta].ID + "\', true);\" href=\'" + url + "'>" + pattern + "</a>";
 
-              console.log('INTERLINK PLUGIN - linking "' + pattern + '" to ' + url);
+              console.info('INTERLINK PLUGIN - linking "' + pattern + '" to ' + url);
 
               try {
-                newContents.textWalk(replacenator);
-                newContinuedContents.textWalk(replacenator);
-                total++;
+                newContents.textWalk(replacenator, replacement);
+                newContinuedContents.textWalk(replacenator, replacement);
+                total += 1;
               } catch (e) {
                 console.warn('INTERLINK PLUGIN - unable to modify post content to establish interlink');
               }
@@ -199,7 +236,7 @@
               console.warn('INTERLINK PLUGIN - bad URL: ' + url);
             }
           }
-          currentMeta++;
+          currentMeta += 1;
         }
       } else {
         console.warn('INTERLINK PLUGIN - taxonomy call has returned no data');
@@ -292,7 +329,7 @@
             matchIndex[taxonomyCodes[i].id] = {
               text: taxonomyCodes[i].value
             };
-            blogsmith.ajaxProxy('http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta?qTxt=' + taxonomyCodes[i].id + '&f=json&authKey=ao1pcpvLTH7QU4gw&client=BS', {}, addLinks);
+            blogsmith.ajaxProxy(API_URL + '?qTxt=' + taxonomyCodes[i].id + '&f=json&authKey=ao1pcpvLTH7QU4gw&client=BS', {}, addLinks);
             console.log('INTERLINK PLUGIN - requesting taxononmy entries for "' + taxonomyCodes[i].value + '"');
             i--;
           }
