@@ -238,7 +238,7 @@
       // Clear the error timer - we got results!
       clearTimeout(errorTimeout);
 
-      if (data.statusCode !== '200') {
+      if (data.statusCode !== 200) {
         // TODO:  Need to report this automatically, perhaps by filing a ticket?
         blogsmith.missive({
           text: 'http://irshield.app.aol.com/rtnt/getTagsFromText returned code (' + data.statusCode + ' - ' + data.statusText + ').  Which is a real bummer.  We suggest trying again later.  If the problem persists, please send a note to central@teamaol.com.'

@@ -64,4 +64,6 @@ module.exports = function (grunt) {
   // Default task.
   grunt.registerTask('default', 'lint concat');
 
+  grunt.registerTask('watch-serve', 'server watch');
+
 };

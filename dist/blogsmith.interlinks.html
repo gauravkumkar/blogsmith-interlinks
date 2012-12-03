@@ -1,5 +1,5 @@
 <!--
-* Interlinks - v0.1.0 - 2012-11-28, 4:03PM EST
+* Interlinks - v0.1.0 - 2012-12-03, 9:37AM EST
 * A Blogsmith plugin for adding relevant links to internal content to Blogsmith posts.
 * https://github.com/aol/blogsmith-interlinks
 * Copyright (c) 2012 Nate Eagle and Shawn Carnell; Licensed BSD
@@ -251,7 +251,7 @@
       // Clear the error timer - we got results!
       clearTimeout(errorTimeout);
 
-      if (data.statusCode !== '200') {
+      if (data.statusCode !== 200) {
         // TODO:  Need to report this automatically, perhaps by filing a ticket?
         blogsmith.missive({
           text: 'http://irshield.app.aol.com/rtnt/getTagsFromText returned code (' + data.statusCode + ' - ' + data.statusText + ').  Which is a real bummer.  We suggest trying again later.  If the problem persists, please send a note to central@teamaol.com.'
