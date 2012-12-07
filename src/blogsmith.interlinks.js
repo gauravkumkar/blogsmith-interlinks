@@ -89,7 +89,7 @@
   // TODO: Replace with SDK method for adding a tool once it's available
   var interlinksButton = $('<span />', {
     'class': 'plugin-interlink add-interlinks',
-    html: '<a style="background-color: red;" title="Generate interlinks for your post\'s content" href="#">Add Interlinks</a>'
+    html: '<a title="Generate interlinks for your post\'s content" href="#">Add Interlinks</a>'
   });
 
   // Once the whole DOM is ready...
@@ -292,12 +292,10 @@
 
         if (matches === 0) {
           message = 'We found no interlinks to suggest.';
-        } else if (matches !== total) {
-          message = 'We found ' + matches + ' suggested interlinks, but the plugin was unable to link ' + (matches - total) + ' of them to your post\'s contents.  Please report this problem to central@teamaol.com.';
-        } else if (total === 1) {
+        } else if (matches === 1) {
           message = 'We found one suggested interlink, which has been placed in your post\'s contents.';
-        } else if (total > 1) {
-          message = 'We found ' + total + ' suggested interlinks, which have been placed in your post\'s contents.';
+        } else if (matches > 1) {
+          message = 'We found ' + matches + ' suggested interlinks, which have been placed in your post\'s contents.';
         }
 
         blogsmith.missive({
