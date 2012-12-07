@@ -24,17 +24,29 @@ module.exports = function (grunt) {
         '<config:lint.files>',
         'templates/**/*.html'
       ],
-      tasks: 'lint concat'
+      tasks: 'default'
     },
     concat: {
       dist: {
         src: [
           '<banner:meta.banner>',
-          'templates/head.html',
-          'src/blogsmith.interlinks.js',
-          'templates/foot.html'
+          'templates/plugin.html'
         ],
         dest: 'dist/blogsmith.interlinks.html'
+      }
+    },
+    replace: {
+      dist: {
+        options: {
+          variables: {
+            'css': '<%= grunt.file.read("src/blogsmith.interlinks.css") %>',
+            'js': '<%= grunt.file.read("src/blogsmith.interlinks.js") %>'
+          },
+          prefix: '@@'
+        },
+        files: {
+          'dist/': 'dist/blogsmith.interlinks.html'
+        }
       }
     },
     jshint: {
@@ -59,10 +71,10 @@ module.exports = function (grunt) {
     }
   });
 
-  grunt.loadNpmTasks('grunt-templater');
+  grunt.loadNpmTasks('grunt-replace');
 
   // Default task.
-  grunt.registerTask('default', 'lint concat');
+  grunt.registerTask('default', 'lint concat replace');
 
   grunt.registerTask('watch-serve', 'server watch');
 
