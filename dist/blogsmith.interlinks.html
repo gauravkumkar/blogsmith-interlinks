@@ -1,5 +1,5 @@
 <!--
-* Interlinks - v0.1.0 - 2012-12-07, 2:40PM EST
+* Interlinks - v0.1.0 - 2012-12-10, 12:39PM EST
 * A Blogsmith plugin for adding relevant links to internal content to Blogsmith posts.
 * https://github.com/aol/blogsmith-interlinks
 * Copyright (c) 2012 Nate Eagle and Shawn Carnell; Licensed BSD
@@ -23,7 +23,13 @@ a.interlink {
 /*global blogsmith:true, BS:true, _blog_name:true, CKEDITOR:true */
 (function ($, blogsmith) {
 
-  var API_URL, options;
+  var API_URL,
+
+    // variables
+    options, validUrl,
+
+    // functions
+    getEntityUrls, chooseUrls;
 
   // Constants
   API_URL = 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta';
@@ -101,11 +107,152 @@ a.interlink {
     };
   }
 
+  /**
+   * Check a url string to see if it's valid.
+   * @param {string} url A string containing a URL to be tested for validity
+   * @returns {Boolean}
+   */
+  validUrl = function (url) {
+    var exp;
+
+    exp = new RegExp(/^([a-z]([a-z]|\d|\+|-|\.)*):(\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:)*@)?((\[(|(v[\da-f]{1,}\.(([a-z]|\d|-|\.|_|~)|[!\@@js'\(\)\*\+,;=]|:)+))\])|((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=])*)(:\d*)?)(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)*)*|(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)*)*)?)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)*)*)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)){0})(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i);
+
+    return exp.test(url);
+  };
+
+  /**
+   * Take a data object returned from the API and make a simpler object with only entities and URLs
+   * @param {Object} data
+   * @returns {Object} Entities and URLs
+   */
+  getEntityUrls = function (data) {
+    var i, length, meta, pattern, entityUrls, url;
+
+    meta = data.getNodeResponse.node.meta;
+    entityUrls = [];
+
+    //console.log('meta', meta);
+    for (i = 0, length = meta.length; i < length; i += 1) {
+      if (meta[i].metaType.name.toLowerCase().indexOf('url') >= 0) {
+
+        // Try to build a valid url.
+        url = meta[i].metaValue;
+
+        if (url.indexOf('http://') < 0) {
+          url = 'http://' + meta[i].metaValue;
+        }
+
+        if (validUrl(url)) {
+          entityUrls.push({
+            id: meta[i].ID,
+            url: url
+          });
+        }
+      }
+    }
+
+    return entityUrls;
+  };
+
+  /**
+   * Take an array of arrays and prompt the user to choose one item from each list
+   * @param {Array} questions An array of arrays
+   * @param {function} callback A function to call when the user has finished choosing
+   * @returns {Array} An array of the selections a user has made
+   */
+  chooseUrls = function (pattern, urls, callback) {
+    console.log('There were', urls.length, 'urls found. Let\'s choose the best.');
+    var i, choose, answer, $chooseDialog, $body;
+
+    $body = $('body');
+
+    // Create an element to use as a jQuery UI Dialog
+    $chooseDialog = $('<div>').appendTo($body);
+
+    i = 0;
+
+    /**
+     * Choose a single item from an array of choices
+     * @param {Array} choices An array of choices
+     */
+    choose = function (choices) {
+      var j, length, choice, onOpen, onChoose;
+
+      // Empty out any previous content from the dialog
+      $chooseDialog.empty();
+
+      $chooseDialog.append('<p>We found ' + choices.length + ' urls for ' + pattern + '. Which one would you like to use?');
+
+      onOpen = function (event, ui) {
+        console.log(event, ui);
+      };
+
+      onChoose = function (event, ui) {
+        var selectedRadio;
+
+        $(this).dialog('close');
+        i += 1;
+
+        selectedRadio = $chooseDialog.find('input[type=radio]:checked');
+        answer = selectedRadio.val();
+
+        // Otherwise, remove this dialog
+        $chooseDialog.remove();
+
+        // And fire the callback
+        console.log('firing callback', answer);
+        callback(answer);
+
+      };
+
+      // Generate markup for each choice
+      for (j = 0, length = choices.length; j < length; j += 1) {
+        var $radio;
+
+        choice = choices[j].url;
+
+        $radio = $('<input>', {
+          name: 'choices',
+          type: 'radio',
+          value: choice
+        });
+
+        $chooseDialog.append($radio);
+        $radio.wrap('<label />');
+        $radio.after(choice + '<a href="' + choice + '"> &rarr;</a>');
+
+        $radio.parent().css({
+          display: 'block'
+        });
+      }
+
+      //$chooseDialog.find('input[type=radio]').first().attr('checked', true);
+
+      // TODO: hide the x button
+      $chooseDialog.dialog({
+        width: '50%',
+        title: 'Choose your Interlink',
+        closeOnEscape: false,
+        resizable: false,
+        modal: true,
+        open: onOpen,
+        buttons: {
+          'Choose': onChoose
+        }
+      });
+
+    };
+
+    // Start with the first set
+    choose(urls);
+  };
+
   // Add custom config settings to CK Editor
   BS.editor.userConfig._all = {
-    //contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/css/style.css']
-    contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://localhost:8000/src/blogsmith.interlinks.css']
+    contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/css/style.css']
+    //contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://localhost:8000/src/blogsmith.interlinks.css']
   };
+
 
   // Create button for Interlinks
   // TODO: Replace with SDK method for adding a tool once it's available
@@ -123,9 +270,9 @@ a.interlink {
   // Add the event listener for our button
   $(document).delegate('.plugin-interlink.add-interlinks', 'click', function (e) {
 
-    var collectTaxonomyCodes, addLinks, submitContents, startLoading, endLoading, error, errorTimeout, $this = $(this),
+    var collectTaxonomyCodes, receiveApiData, addLinks, submitContents, startLoading, endLoading, error, errorTimeout, $this = $(this),
       button = $this.children('a'),
-      plugin = $this.parent(),
+      plugin = $this,
       title = blogsmith.getTitle(),
       matches = 0,
       total = 0,
@@ -142,14 +289,12 @@ a.interlink {
       newContinuedContents = $('div/>', {
         html: postContinuedContents
       }),
-      loadingImage = $('<img />', {
 
+      loadingImage = $('<img />', {
         src: 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/images/loading.gif?v4'
       }).css({
         margin: '4px 5px 4px'
       });
-
-    console.log('button', button);
 
     // Send contents of post to API
     submitContents = function (proxy, name, title, contents, continuedContents, settings) {
@@ -181,128 +326,136 @@ a.interlink {
       errorTimeout = setTimeout(error, 10000);
     },
 
-    addLinks = function (data) {
-      var meta, currentMeta, length, linked, pattern, match, matched,
-        replacement, replacenator;
+    /**
+     * Receive and process the data returned by the API
+     * @param {Object} data A data object from the API.
+     */
+    receiveApiData = function (data) {
+      var urls, pattern, done;
 
+      // http://code.google.com/p/jquery-json/
       data = $.secureEvalJSON(data);
 
-      taxonomyCallsOutstanding--;
+      taxonomyCallsOutstanding -= 1;
 
       if (data.statusCode !== 200) {
+
         // TODO:  Need to report this automatically, perhaps by filing a ticket?
         blogsmith.missive({
           text: API_URL + ' returned code (' + data.statusCode + ' - ' + data.statusText + ').   Which is a real bummer.  We suggest trying again later.  If the problem persists, please send a note to <a href="mailto:central@teamaol.com">central@teamaol.com</a>.'
         });
+
       } else if ($.type(data.getNodeResponse) !== "undefined") {
 
-        // TODO:  Better validation.  Make sure these fields are present before accessing them.
-
-        meta = data.getNodeResponse.node.meta;
-        currentMeta = 0;
-        length = meta.length;
-        linked = false;
+        // Retrieve the text we originally matched against
         pattern = matchIndex[data.getNodeResponse.node.ID].text;
 
-        if (options.matchAllEntities) {
-          match = new RegExp('\\b' + pattern + '\\b', 'g');
-        } else {
-          match = new RegExp('\\b' + pattern + '\\b');
-        }
+        urls = getEntityUrls(data);
+        console.log('urls', urls);
 
-        console.log('INTERLINK PLUGIN - "' + pattern + '" matches taxonomy id ' + meta[currentMeta].ID);
-
-        /*
-         * @param {string} replacement
-         * @see http://jsfiddle.net/v2yp5/4/
-         * @see http://stackoverflow.com/questions/6012163/whats-a-good-alternative-to-html-rewriting/6012345#6012345
-         */
-        replacenator = function (replacement) {
-          var $span, text;
-
-          if (!options.matchAllEntities && matched) {
-            return;
-          }
-
-          text = this.nodeValue;
-
-          if (this.nodeValue.match(match)) {
-
-            matched = true;
-
-            matches += this.nodeValue.match(match).length;
-
-            // We can't just change the text in the text node because our new
-            // content contains HTML. Instead, we create a blank span tag and
-            // populate its HTML with our new content.
-            $span = $('<span>', {
-              html: this.nodeValue.replace(match, replacement)
-            });
-
-            // Insert our new content
-            $span.insertBefore(this);
-
-            // Remove the old content
-            this.parentNode.removeChild(this);
-
-            // Unwrap the blank span from around our new content
-            $span.contents().unwrap();
-          }
+        // Fired when all the data is ready
+        done = function (url) {
+          addLinks({
+            id: urls[0].id,
+            pattern: pattern,
+            url: url
+          });
         };
 
-        while ((currentMeta < length) && !linked) {
-          // Reset the matched state for each new entity
-          matched = false;
-
-          // TODO: Searching for the string "url" in a metadata field is pretty lame.  Need to work with Taxo team (Madhu) on getting better results.
-          // TODO: There is actually a ranking of which URLs are better than other URLs (should one entity link to more than one URL).  Shawn has asked for the taxo folks to just include the ranking in the results rather than email them to us ad hoc.
-          if (meta[currentMeta].metaType.name.toLowerCase().indexOf('url') >= 0) {
-
-            // Try to build a valid url.
-            var url = meta[currentMeta].metaValue;
-            if (url.indexOf('http://') < 0) {
-              url = 'http://' + meta[currentMeta].metaValue;
-            }
-
-            // If we only want entities matched once
-            if (!options.matchAllEntities) {
-
-              // Check for existing interlinks first
-              if ($('a.interlink[href="' + url + '"]', newContents).length) {
-                matched = true;
-              }
-            }
-
-            // console.log('INTERLINK PLUGIN - found URL: ' + url);
-            // TODO: Provide some commenting on this giant regex - what does it do?
-            if (/^([a-z]([a-z]|\d|\+|-|\.)*):(\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:)*@)?((\[(|(v[\da-f]{1,}\.(([a-z]|\d|-|\.|_|~)|[!\@@js'\(\)\*\+,;=]|:)+))\])|((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=])*)(:\d*)?)(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)*)*|(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)*)*)?)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)*)*)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)){0})(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\@@js'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i.test(url)) {
-
-              //matches += 1;
-              replacement = "<a class='interlink' onclick=\"bN.set(\'blogsmith_interlink\', \'1\', true); bN.set(\'blogsmith_taxo_id\', \'" + meta[currentMeta].ID + "\', true);\" href=\'" + url + "'>" + pattern + "</a>";
-
-              console.info('INTERLINK PLUGIN - linking "' + pattern + '" to ' + url);
-
-              try {
-                newContents.textWalk(replacenator, replacement);
-                newContinuedContents.textWalk(replacenator, replacement);
-                total += 1;
-              } catch (e) {
-                console.warn('INTERLINK PLUGIN - unable to modify post content to establish interlink');
-              }
-
-              blogsmith.replaceIntoEditor(newContents.html(), 1);
-              blogsmith.replaceIntoEditor(newContinuedContents.html(), 2);
-
-              linked = true;
-            } else {
-              console.warn('INTERLINK PLUGIN - bad URL: ' + url);
-            }
-          }
-          currentMeta += 1;
+        if (urls.length > 1) {
+          chooseUrls(pattern, urls, done);
+        } else {
+          done(urls[0].url);
         }
+
       } else {
         console.warn('INTERLINK PLUGIN - taxonomy call has returned no data');
       }
+    },
+
+    addLinks = function (data) {
+      var i, length, meta, currentMeta, linked, pattern, match, matched,
+        replacement, replacenator;
+
+      // Set the regex to global if we're supposed to match all entities
+      if (options.matchAllEntities) {
+        match = new RegExp('\\b' + data.pattern + '\\b', 'g');
+      } else {
+        // Otherwise just get the first
+        match = new RegExp('\\b' + data.pattern + '\\b');
+      }
+
+      //console.log('INTERLINK PLUGIN - "' + pattern + '" matches taxonomy id ' + meta[currentMeta].ID);
+
+      /**
+       * Perform a regex replacement on a textnode with text that may include
+       * html
+       * @param {string} replacement
+       * @see http://jsfiddle.net/v2yp5/4/
+       * @see http://stackoverflow.com/questions/6012163/whats-a-good-alternative-to-html-rewriting/6012345#6012345
+       */
+      replacenator = function (replacement) {
+        var $span, text;
+
+        if (!options.matchAllEntities && matched) {
+          return;
+        }
+
+        text = this.nodeValue;
+
+        if (this.nodeValue.match(match)) {
+
+          matched = true;
+
+          matches += this.nodeValue.match(match).length;
+
+          // We can't just change the text in the text node because our new
+          // content contains HTML. Instead, we create a blank span tag and
+          // populate its HTML with our new content.
+          $span = $('<span>', {
+            html: this.nodeValue.replace(match, replacement)
+          });
+
+          // Insert our new content
+          $span.insertBefore(this);
+
+          // Remove the old content
+          this.parentNode.removeChild(this);
+
+          // Unwrap the blank span from around our new content
+          $span.contents().unwrap();
+        }
+      };
+
+      // Reset the matched state for each new entity
+      matched = false;
+
+      // If we only want entities matched once
+      if (!options.matchAllEntities) {
+
+        // Check for existing interlinks first
+        if ($('a.interlink[href="' + data.url + '"]', newContents).length) {
+          matched = true;
+        }
+      }
+
+      // console.log('INTERLINK PLUGIN - found URL: ' + url);
+
+      //matches += 1;
+      replacement = "<a class='interlink' onclick=\"bN.set(\'blogsmith_interlink\', \'1\', true); bN.set(\'blogsmith_taxo_id\', \'" + data.id + "\', true);\" href=\'" + data.url + "'>" + data.pattern + "</a>";
+
+      console.info('INTERLINK PLUGIN - linking "' + data.pattern + '" to ' + data.url);
+
+      try {
+        newContents.textWalk(replacenator, replacement);
+        newContinuedContents.textWalk(replacenator, replacement);
+        total += 1;
+      } catch (e) {
+        console.warn('INTERLINK PLUGIN - unable to modify post content to establish interlink');
+      }
+
+      blogsmith.replaceIntoEditor(newContents.html(), 1);
+      blogsmith.replaceIntoEditor(newContinuedContents.html(), 2);
 
       if (!taxonomyCallsOutstanding) {
 
@@ -325,7 +478,9 @@ a.interlink {
         });
 
         endLoading();
+
       }
+
     },
 
     collectTaxonomyCodes = function (data) {
@@ -389,7 +544,7 @@ a.interlink {
             matchIndex[taxonomyCodes[i].id] = {
               text: taxonomyCodes[i].value
             };
-            blogsmith.ajaxProxy(API_URL + '?qTxt=' + taxonomyCodes[i].id + '&f=json&authKey=ao1pcpvLTH7QU4gw&client=BS', {}, addLinks);
+            blogsmith.ajaxProxy(API_URL + '?qTxt=' + taxonomyCodes[i].id + '&f=json&authKey=ao1pcpvLTH7QU4gw&client=BS', {}, receiveApiData);
             console.log('INTERLINK PLUGIN - requesting taxononmy entries for "' + taxonomyCodes[i].value + '"');
             i--;
           }
