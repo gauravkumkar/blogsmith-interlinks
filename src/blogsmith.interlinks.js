@@ -234,8 +234,8 @@ if (typeof blogsmith.missive !== 'function') {
      */
     _getInterlinks: function (callback) {
       var self, options, i, length, content, text, outstandingCalls, matches,
-        entities, getTagsFromText, receiveTagsData, getMetaForTag,
-        receiveMetaData, urlFilter, contentCallbackQueue;
+        expectedContent, entities, getTagsFromText, receiveTagsData,
+        getMetaForTag, receiveMetaData, urlFilter, contentCallbackQueue;
 
       // Turn on visual loading state of button
       this._loading(true);
@@ -259,6 +259,7 @@ if (typeof blogsmith.missive !== 'function') {
       // In this case, it's the contents and continued contents portions of
       // the CK Editor
       content = this.options.content;
+      expectedContent = content.length;
 
       // jQuery on an empty object - a perfect queue holder
       contentCallbackQueue = $({});
@@ -282,6 +283,7 @@ if (typeof blogsmith.missive !== 'function') {
           sOffsets: 1
         }, function (data) {
           var queueLength;
+          //console.log(data);
 
           contentCallbackQueue.queue('contentCallbacks', function (next) {
             receiveTagsData.call(content, data);
@@ -292,9 +294,10 @@ if (typeof blogsmith.missive !== 'function') {
 
           //console.log('queueLength', queueLength);
 
-          if (queueLength >= self.options.content.length) {
+          if (queueLength >= expectedContent) {
             contentCallbackQueue.dequeue('contentCallbacks');
           }
+          //contentCallbackQueue.dequeue('contentCallbacks');
         });
       };
 
@@ -308,6 +311,7 @@ if (typeof blogsmith.missive !== 'function') {
 
         content = this;
         //console.log('content', content);
+        //console.log('data', data);
 
         outstandingCalls -= 1;
 
@@ -445,6 +449,8 @@ if (typeof blogsmith.missive !== 'function') {
           outstandingCalls += 1;
           content[i].matches = [];
           getTagsFromText.call(content[i], text);
+        } else {
+          expectedContent -= 1;
         }
       }
     },
