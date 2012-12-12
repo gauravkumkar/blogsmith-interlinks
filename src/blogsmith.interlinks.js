@@ -62,7 +62,7 @@ if (typeof blogsmith.missive !== 'function') {
       getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
       taxonomyApi: 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta',
       threshold: 0.0,
-      hitThreshold: false,
+      matchAllEntities: true,
       content: [
         {
           name: 'Contents',
@@ -108,8 +108,6 @@ if (typeof blogsmith.missive !== 'function') {
     },
 
     _create: function () {
-      console.log('Interlinks: Create');
-
       this._addTool();
       this._bindEvents();
       this._addCKStyles();
@@ -158,6 +156,24 @@ if (typeof blogsmith.missive !== 'function') {
         event.preventDefault();
         this._getInterlinks($.proxy(this._chooseUrls, this));
       }, this));
+    },
+
+    /**
+     * Numbers less than 10 should be written out.
+     * @param {Number} int
+     */
+    _numberize: function (int) {
+      var numbers;
+
+      numbers = [
+        'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'
+      ];
+
+      if (int > 0 && int < 10 && typeof numbers[int - 1] !== 'undefined') {
+        return numbers[int - 1];
+      } else {
+        return int;
+      }
     },
 
     /**
@@ -217,8 +233,12 @@ if (typeof blogsmith.missive !== 'function') {
      * jQuery 1.4.
      */
     _getInterlinks: function (callback) {
-      var self, options, i, length, content, outstandingCalls, matches,
-        getTagsFromText, receiveTagsData, getMetaForTag, receiveMetaData;
+      var self, options, i, length, content, text, outstandingCalls, matches,
+        entities, getTagsFromText, receiveTagsData, getMetaForTag,
+        receiveMetaData, urlFilter, contentCallbackQueue;
+
+      // Turn on visual loading state of button
+      this._loading(true);
 
       // Save a reference to this
       self = this;
@@ -231,10 +251,17 @@ if (typeof blogsmith.missive !== 'function') {
       // This array will ultimately contain all of our matches and URLs
       matches = [];
 
+      // We'll keep track of what entities have been returned so that we don't
+      // link to them more than once
+      entities = [];
+
       // Content is an array of content items set in the options
       // In this case, it's the contents and continued contents portions of
       // the CK Editor
       content = this.options.content;
+
+      // jQuery on an empty object - a perfect queue holder
+      contentCallbackQueue = $({});
 
       /**
        * Submit contents of post to API
@@ -253,7 +280,22 @@ if (typeof blogsmith.missive !== 'function') {
           body: text,
           sMatchTextTags: 1,
           sOffsets: 1
-        }, $.proxy(receiveTagsData, content));
+        }, function (data) {
+          var queueLength;
+
+          contentCallbackQueue.queue('contentCallbacks', function (next) {
+            receiveTagsData.call(content, data);
+            next();
+          });
+
+          queueLength = contentCallbackQueue.queue('contentCallbacks').length;
+
+          //console.log('queueLength', queueLength);
+
+          if (queueLength >= self.options.content.length) {
+            contentCallbackQueue.dequeue('contentCallbacks');
+          }
+        });
       };
 
       /**
@@ -272,6 +314,11 @@ if (typeof blogsmith.missive !== 'function') {
         // The Blogsmith AJAX Proxy returns a string - convert it to JS
         tagsData = JSON.parse(data);
 
+        if (tagsData.statusCode !== 200) {
+          self._error(tagsData.statusCode, tagsData.statusText);
+        }
+
+        //console.log(tagsData);
         tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag;
 
         callback = function (data) {
@@ -282,10 +329,21 @@ if (typeof blogsmith.missive !== 'function') {
         // Fetch meta data for each tag
         for (i = 0, length = tags.length; i < length; i += 1) {
           tag = tags[i];
+
+          // If it has the proper tag name...
           if (tag.name === 'MATCHTEXT') {
-            if (tag.score > options.threshold) {
-              outstandingCalls += 1;
-              getMetaForTag(tag.taxoId, $.proxy(callback, tag));
+
+            // And we haven't gotten this entity already...
+            if (!options.matchAllEntities || $.inArray(tag.taxoId, entities) < 0) {
+
+              // And it passes our threshold
+              if (tag.score > options.threshold) {
+
+                // Call the meta API for URLs
+                outstandingCalls += 1;
+                entities.push(tag.taxoId);
+                getMetaForTag(tag.taxoId, $.proxy(callback, tag));
+              }
             }
           }
         }
@@ -309,35 +367,61 @@ if (typeof blogsmith.missive !== 'function') {
       };
 
       /**
+       * Provide some domain-specific filtering for URLs. We've been promised that this will be incorporated into the API in the future.
+       * @param {Object} meta A meta tag from the API
+       * @returns Boolean
+       */
+      urlFilter = function (meta) {
+        var metaTypeId, disallowed;
+
+        metaTypeId = parseInt(meta.metaType.ID, 10);
+
+        disallowed = [
+          124, // musicbrainz
+          130 // autos.aol.com
+        ];
+
+        return ($.inArray(metaTypeId, disallowed) < 0) ? true : false;
+      };
+
+      /**
        * Receive data from the meta data API for entities
        * @param {Object} data
        * @param {Object} content
        * @param {Object} tag
        */
       receiveMetaData = function (data, content, tag) {
-        var i, length, match, meta;
+        var i, length, match, meta, domain;
         //console.log('tag', tag);
 
         data = JSON.parse(data);
 
-        meta = data.getNodeResponse.node.meta;
-
-        match = {
-          text: tag.value,
-          offset: tag.instances.instance[0].offset,
-          // TODO: Is this ever not just the length of the text string?
-          length: tag.instances.instance[0].length,
-          urls: []
-        };
-
-        for (i = 0, length = meta.length; i < length; i += 1) {
-          if (meta[i].metaType.displayName.indexOf('URL') > -1) {
-            match.urls.push(meta[i].metaValue);
-          }
+        //console.log('data', data);
+        if (data.getNodeResponse) {
+          meta = data.getNodeResponse.node.meta || 'undefined';
         }
 
-        if (match.urls.length) {
-          content.matches.push(match);
+        if (meta) {
+          match = {
+            text: tag.value,
+            taxoId: tag.taxoId,
+            offset: tag.instances.instance[0].offset,
+            // TODO: Is this ever not just the length of the text string?
+            length: tag.instances.instance[0].length,
+            urls: []
+          };
+
+          for (i = 0, length = meta.length; i < length; i += 1) {
+            if (meta[i].metaType.displayName.indexOf('URL') > -1) {
+              if (urlFilter(meta[i])) {
+                match.urls.push(meta[i].metaValue);
+              }
+            }
+          }
+
+          if (match.urls.length) {
+            content.matches.push(match);
+          }
         }
 
         outstandingCalls -= 1;
@@ -354,24 +438,123 @@ if (typeof blogsmith.missive !== 'function') {
 
       };
 
-      // Turn on visual loading state of button
-      this._loading(true);
-
       for (i = 0, length = content.length; i < length; i += 1) {
-        outstandingCalls += 1;
-        content[i].matches = [];
-        getTagsFromText.call(content[i], content[i].get());
+        text = content[i].get();
+
+        if (text) {
+          outstandingCalls += 1;
+          content[i].matches = [];
+          getTagsFromText.call(content[i], text);
+        }
       }
     },
 
     _chooseUrls: function () {
-      this._addLinks();
+      var self, i, j, content, choose, increment, $chooseDialog;
+
+      self = this;
+      content = this.options.content;
+      i = 0;
+      j = 0;
+
+      // Create an element to use as a jQuery UI Dialog
+      $chooseDialog = $('<div>').appendTo($('body'));
+
+      choose = function () {
+        var match;
+
+        if (i >= content.length) {
+          self._addLinks();
+        } else {
+          if (!content[i].matches) {
+            content[i].matches = [];
+          }
+          match = content[i].matches[j];
+
+          if (match && match.urls.length > 1) {
+
+            // Empty out any previous content from the dialog
+            $chooseDialog.empty();
+
+            $chooseDialog.append('<p>We found ' +
+              match.urls.length + ' urls for <strong>' + match.text +
+              '</strong>. Which one would you like to use?');
+
+            $.each(match.urls, function (i, url) {
+              var $radio;
+
+              $radio = $('<input>', {
+                name: 'choices',
+                type: 'radio',
+                value: url
+              });
+
+              $chooseDialog.append($radio);
+              $radio.wrap('<label />');
+              $radio.after(url + ' <a href="' + url + '"> &rarr;</a>');
+
+              $radio.parent().css({
+                display: 'block'
+              });
+
+            });
+
+            $chooseDialog.find('input[type=radio]')
+              .first()
+              .trigger('click');
+
+            // TODO: hide the x button
+            $chooseDialog.dialog({
+              width: '50%',
+              title: 'Choose your Interlink',
+              closeOnEscape: false,
+              resizable: false,
+              modal: true,
+              //open: onOpen,
+              close: function () {
+                var selectedRadio, answer;
+
+                selectedRadio = $chooseDialog.find('input[type=radio]:checked');
+                answer = selectedRadio.val();
+
+                match.urls = [ answer ];
+                increment();
+                choose();
+              },
+              buttons: {
+                'Choose': function () {
+                  $(this).dialog('close');
+                }
+              }
+            });
+
+
+          } else {
+            increment();
+            choose();
+          }
+        }
+
+      };
+
+      increment = function () {
+        j += 1;
+
+        if (j >= content[i].matches.length) {
+          i += 1;
+          j = 0;
+        }
+      };
+
+      choose();
+
     },
 
     _addLinks: function () {
-      var i, length, content;
+      var content, totalMatches, missiveText;
 
       content = this.options.content;
+      totalMatches = 0;
 
       $.each(content, function (i, contentItem) {
         var contentArray, newContent;
@@ -385,7 +568,7 @@ if (typeof blogsmith.missive !== 'function') {
           // Use the offset to find the right position in the array to add new
           // html content
           contentArray[match.offset] = [
-            '<a class="interlink" href="',
+            "<a class=\"interlink\" onclick=\"bN.set(\'blogsmith_interlink\', \'`\', true); bN.set(\'blogsmith_taxo_id\', \'" + match.taxoId + "\', true);\" href=",
             match.urls[0],
             '">',
             contentArray[match.offset]
@@ -397,10 +580,32 @@ if (typeof blogsmith.missive !== 'function') {
             '</a>'
           ].join('');
 
-          newContent = contentArray.join('');
-          contentItem.set(newContent);
+          totalMatches += 1;
+
         });
 
+        newContent = contentArray.join('');
+        contentItem.set(newContent);
+
+      });
+
+      if (totalMatches < 1) {
+        missiveText = 'We found no interlinks to suggest.';
+      } else if (totalMatches === 1) {
+        missiveText = 'We found one suggested interlink. We\'ve placed it in your post\'s contents.';
+      } else {
+        missiveText = 'We found ' + this._numberize(totalMatches) + ' suggested interlinks. We\'ve placed them in your post\'s contents.';
+      }
+
+      blogsmith.missive({
+        text: missiveText
+      });
+    },
+
+    _error: function (statusCode, statusText) {
+      this._loading(false);
+      blogsmith.missive({
+        text: statusCode + ': ' + statusText
       });
     },
 
