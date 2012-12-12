@@ -1,560 +1,419 @@
 /*global blogsmith:true, BS:true, _blog_name:true, CKEDITOR:true */
-(function ($, blogsmith) {
 
-  var API_URL,
+/**
+ * Send a message to the user above the text entry area.
+ * I want to get this incorporated into the SDK.
+ * @param {Object} options
+ * @config {string} [class] Class to be added to the missive
+ * @config {string} [text] The text of the missive
+ */
+if (typeof blogsmith.missive !== 'function') {
+  blogsmith.missive = function (options) {
 
-    // variables
-    options, validUrl,
+    var missive, settings, defaults = {
+      'class': 'blogsmith-missive',
+      text: ''
+    };
 
-    // functions
-    getEntityUrls, chooseUrls;
+    settings = $.extend({}, defaults, options);
 
-  // Constants
-  API_URL = 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta';
+    $(document).delegate('.blogsmith-missive', 'click', function (event) {
+      var target = $(event.target);
 
-  // Default Options
-  options = {
-    matchAllEntities: false
-  };
-
-  // Missive
-  if (typeof blogsmith.missive !== 'function') {
-    blogsmith.missive = function (options) {
-
-      var missive, settings, defaults = {
-        'class': 'blogsmith-missive',
-        text: ''
-      };
-
-      settings = $.extend({}, defaults, options);
-
-      $(document).delegate('.blogsmith-missive', 'click', function (e) {
-        var target = $(e.target);
-
-        target.hide('fast', function () {
-          $(this).remove();
-        });
-
+      target.hide('fast', function () {
+        $(this).remove();
       });
 
-      missive = $('<div />', {
-        'class': settings['class'],
-        'text': settings['text']
-      }).css({
-        margin: '5px 0',
-        padding: '10px'
-      }).addClass('ui-state-highlight ui-corner-all');
+    });
 
-      missive.hide().insertBefore('#postcontents').fadeIn('fast', function (e) {
-        var missives = $('.blogsmith-missive');
+    missive = $('<div />', {
+      'class': settings['class'],
+      'text': settings['text']
+    }).css({
+      margin: '5px 0',
+      padding: '10px'
+    })
 
-        if (missives.length > 1) {
-          missives.first().trigger('click');
-        }
-      });
-    };
-  }
+      // Use jQuery UI theme classes
+      .addClass('ui-state-highlight ui-corner-all');
 
-  // Create a small textWalk jQuery plugin that walks through a bit of HTML and
-  // stops when it reaches text nodes or script/textarea/anchor tags.
-  if (typeof jQuery.fn.textWalk !== 'function') {
-    jQuery.fn.textWalk = function (fn, args) {
-      var jwalk;
+    missive.hide().insertBefore('#postcontents').fadeIn('fast', function (e) {
+      var missives = $('.blogsmith-missive');
 
-      jwalk = function () {
-        var nn = this.nodeName.toLowerCase();
-
-        if (nn === '#text') {
-          if (args) {
-            if ($.isArray(args)) {
-              fn.apply(this, args);
-            } else {
-              fn.call(this, args);
-            }
-          } else {
-            fn.call(this);
-          }
-        } else if (this.nodeType === 1 && this.childNodes && this.childNodes[0] && nn !== 'script' && nn !== 'textarea' && nn !== 'a') {
-          $(this).contents().each(jwalk);
-        }
-      };
-
-      this.contents().each(jwalk);
-
-      return this;
-    };
-  }
-
-  /**
-   * Check a url string to see if it's valid.
-   * @param {string} url A string containing a URL to be tested for validity
-   * @returns {Boolean}
-   */
-  validUrl = function (url) {
-    var exp;
-
-    exp = new RegExp(/^([a-z]([a-z]|\d|\+|-|\.)*):(\/\/(((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:)*@)?((\[(|(v[\da-f]{1,}\.(([a-z]|\d|-|\.|_|~)|[!\$&'\(\)\*\+,;=]|:)+))\])|((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5]))|(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=])*)(:\d*)?)(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*|(\/((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)?)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)+(\/(([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)*)*)|((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)){0})(\?((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|[\uE000-\uF8FF]|\/|\?)*)?(\#((([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(%[\da-f]{2})|[!\$&'\(\)\*\+,;=]|:|@)|\/|\?)*)?$/i);
-
-    return exp.test(url);
-  };
-
-  /**
-   * Take a data object returned from the API and make a simpler object with only entities and URLs
-   * @param {Object} data
-   * @returns {Object} Entities and URLs
-   */
-  getEntityUrls = function (data) {
-    var i, length, meta, pattern, entityUrls, url;
-
-    meta = data.getNodeResponse.node.meta;
-    entityUrls = [];
-
-    //console.log('meta', meta);
-    for (i = 0, length = meta.length; i < length; i += 1) {
-      if (meta[i].metaType.name.toLowerCase().indexOf('url') >= 0) {
-
-        // Try to build a valid url.
-        url = meta[i].metaValue;
-
-        if (url.indexOf('http://') < 0) {
-          url = 'http://' + meta[i].metaValue;
-        }
-
-        if (validUrl(url)) {
-          entityUrls.push({
-            id: meta[i].ID,
-            url: url
-          });
-        }
+      // If there's another missive already there, click it to dismiss it
+      if (missives.length > 1) {
+        missives.first().trigger('click');
       }
-    }
-
-    return entityUrls;
+    });
   };
+}
 
-  /**
-   * Take an array of arrays and prompt the user to choose one item from each list
-   * @param {Array} questions An array of arrays
-   * @param {function} callback A function to call when the user has finished choosing
-   * @returns {Array} An array of the selections a user has made
-   */
-  chooseUrls = function (pattern, urls, callback) {
-    console.log('There were', urls.length, 'urls found. Let\'s choose the best.');
-    var i, choose, answer, $chooseDialog, $body;
+/**
+ * Add a button to the Blogsmith CMS that allows writers/editors to submit the
+ * contents of a post and get recommended links to internal content placed into
+ * their text.
+ * @see http://wiki.jqueryui.com/w/page/12138135/Widget%20factory
+ */
+(function ($, blogsmith) {
+  $.widget('blogsmith.interlinks', {
 
-    $body = $('body');
-
-    // Create an element to use as a jQuery UI Dialog
-    $chooseDialog = $('<div>').appendTo($body);
-
-    i = 0;
+    // These options will be used as defaults
+    options: {
+      getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
+      taxonomyApi: 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta',
+      threshold: 0.0,
+      hitThreshold: false,
+      content: [
+        {
+          name: 'Contents',
+          get: function () {
+            return blogsmith.getContents.call(blogsmith);
+          },
+          set: function (html) {
+            blogsmith.replaceIntoEditor(html, 1);
+          }
+        },
+        {
+          name: 'Continued Contents',
+          get: function () {
+            return blogsmith.getContinuedContents.call(blogsmith);
+          },
+          set: function (html) {
+            blogsmith.replaceIntoEditor(html, 2);
+          }
+        }
+      ]
+    },
 
     /**
-     * Choose a single item from an array of choices
-     * @param {Array} choices An array of choices
+     * This object holds the widget's UI elements
      */
-    choose = function (choices) {
-      var j, length, choice, onOpen, onChoose;
+    ui: {
 
-      // Empty out any previous content from the dialog
-      $chooseDialog.empty();
-
-      $chooseDialog.append('<p>We found ' + choices.length + ' urls for ' + pattern + '. Which one would you like to use?');
-
-      onOpen = function (event, ui) {
-        console.log(event, ui);
-      };
-
-      onChoose = function (event, ui) {
-        var selectedRadio;
-
-        $(this).dialog('close');
-        i += 1;
-
-        selectedRadio = $chooseDialog.find('input[type=radio]:checked');
-        answer = selectedRadio.val();
-
-        // Otherwise, remove this dialog
-        $chooseDialog.remove();
-
-        // And fire the callback
-        console.log('firing callback', answer);
-        callback(answer);
-
-      };
-
-      // Generate markup for each choice
-      for (j = 0, length = choices.length; j < length; j += 1) {
-        var $radio;
-
-        choice = choices[j].url;
-
-        $radio = $('<input>', {
-          name: 'choices',
-          type: 'radio',
-          value: choice
-        });
-
-        $chooseDialog.append($radio);
-        $radio.wrap('<label />');
-        $radio.after(choice + '<a href="' + choice + '"> &rarr;</a>');
-
-        $radio.parent().css({
-          display: 'block'
-        });
-      }
-
-      //$chooseDialog.find('input[type=radio]').first().attr('checked', true);
-
-      // TODO: hide the x button
-      $chooseDialog.dialog({
-        width: '50%',
-        title: 'Choose your Interlink',
-        closeOnEscape: false,
-        resizable: false,
-        modal: true,
-        open: onOpen,
-        buttons: {
-          'Choose': onChoose
-        }
-      });
-
-    };
-
-    // Start with the first set
-    choose(urls);
-  };
-
-  // Add custom config settings to CK Editor
-  BS.editor.userConfig._all = {
-    contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/css/style.css']
-    //contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://localhost:8000/src/blogsmith.interlinks.css']
-  };
-
-
-  // Create button for Interlinks
-  // TODO: Replace with SDK method for adding a tool once it's available
-  var interlinksButton = $('<span />', {
-    'class': 'plugin-interlink add-interlinks',
-    html: '<a title="Generate interlinks for your post\'s content" href="#">Add Interlinks</a>'
-  });
-
-  // Once the whole DOM is ready...
-  $(document).ready(function () {
-    // Add it to the tools box on the right rail
-    interlinksButton.appendTo('#postsave_extended');
-  });
-
-  // Add the event listener for our button
-  $(document).delegate('.plugin-interlink.add-interlinks', 'click', function (e) {
-
-    var collectTaxonomyCodes, receiveApiData, addLinks, submitContents, startLoading, endLoading, error, errorTimeout, $this = $(this),
-      button = $this.children('a'),
-      plugin = $this,
-      title = blogsmith.getTitle(),
-      matches = 0,
-      total = 0,
-      name = _blog_name,
-      taxonomyCodes = [],
-      currentTaxonomyCode = 0,
-      matchIndex = {},
-      taxonomyCallsOutstanding = 0,
-      postContents = blogsmith.getContents(),
-      postContinuedContents = blogsmith.getContinuedContents(),
-      newContents = $('<div/>', {
-        html: postContents
-      }),
-      newContinuedContents = $('div/>', {
-        html: postContinuedContents
+      button: $('<a>', {
+        title: 'Generate interlinks for your post\'s content',
+        href: '#',
+        text: 'Add Interlinks'
       }),
 
-      loadingImage = $('<img />', {
+      // An animated .gif (pronounced JIFF)
+      loadingImage: $('<img />', {
         src: 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/images/loading.gif?v4'
       }).css({
-        margin: '4px 5px 4px'
-      });
+        margin: '4px 5px 4px',
+        position: 'absolute',
+        top: 0
+      })
 
-    // Send contents of post to API
-    submitContents = function (proxy, name, title, contents, continuedContents, settings) {
+    },
 
-      var defaults = {
-        domain: blogsmith.getDomain(),
-        // town: 'realestate',
-        // url: 'http://vm-149-174-12-89.asset.aol.com:8080/WM/api.jsp?jsoncallback=?',
-        url: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
-        callback: collectTaxonomyCodes
-      },
-      txt = contents + continuedContents;
+    _create: function () {
+      console.log('Interlinks: Create');
 
-      settings = $.extend({}, defaults, settings);
+      this._addTool();
+      this._bindEvents();
+      this._addCKStyles();
+    },
 
-      blogsmith.ajaxProxy(
-        settings.url, {
-        // town: settings.town,
-        tagger: 'T',
-        platform: 'BS',
-        app: blogsmith.getDomain(),
-        channel: name,
-        title: title,
-        body: txt,
-        'sMatchTextTags': 1,
-        supplies: {}
-      }, settings.callback);
+    _setOption: function (key, value) {
+      switch (key) {
+      case 'threshold':
+        // handle changes to the threshold option
+        break;
+      case 'foo':
+        // bar
+        break;
+      }
 
-      errorTimeout = setTimeout(error, 10000);
+      // In jQuery UI 1.8, you have to manually invoke the _setOption method from the base widget
+      $.Widget.prototype._setOption.apply(this, arguments);
     },
 
     /**
-     * Receive and process the data returned by the API
-     * @param {Object} data A data object from the API.
+     * Add an "Add Interlinks" button to the tools box in the right rail of the
+     * CMS. I'd like to get this added to the SDK, too.
+     **/
+    _addTool: function () {
+      this.element.addClass('add-interlinks');
+      this.element.append(this.ui.button);
+      this.element.appendTo('#postsave_extended');
+    },
+
+    /**
+     * Add custom CSS to the CK Editor to visually highlight interlinks.
+     * TODO: I would really, really like to do this without an external css
+     * file so we don't have to manage another file on the origin server.
      */
-    receiveApiData = function (data) {
-      var urls, pattern, done;
+    _addCKStyles: function () {
 
-      // http://code.google.com/p/jquery-json/
-      data = $.secureEvalJSON(data);
+      // Add custom config settings to CK Editor
+      BS.editor.userConfig._all = {
+        //contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/css/style.css']
+        contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://localhost:8000/src/blogsmith.interlinks.css']
+      };
+    },
 
-      taxonomyCallsOutstanding -= 1;
+    _bindEvents: function () {
+      this.element.bind('click', $.proxy(function (event) {
+        event.preventDefault();
+        this._getInterlinks($.proxy(this._chooseUrls, this));
+      }, this));
+    },
 
-      if (data.statusCode !== 200) {
+    /**
+     * Toggle a visual loading state for the tool button.
+     * @param {Boolean} state Turn loading off or on
+     */
+    _loading: function (state) {
 
-        // TODO:  Need to report this automatically, perhaps by filing a ticket?
-        blogsmith.missive({
-          text: API_URL + ' returned code (' + data.statusCode + ' - ' + data.statusText + ').   Which is a real bummer.  We suggest trying again later.  If the problem persists, please send a note to <a href="mailto:central@teamaol.com">central@teamaol.com</a>.'
+      if (state === 'undefined') {
+        return this.state || false;
+      }
+
+      if (state === true) {
+
+        // Turn on loading state
+        this.loadingState = true;
+
+        this.ui.loadingImage
+          .insertAfter(this.ui.button)
+          .hide()
+          .css({
+            left: this.ui.button.position().left,
+            top: this.ui.button.position().top
+          });
+
+
+        this.ui.button.animate({
+          opacity: 0
+        }, {
+          speed: 'fast',
+          complete: $.proxy(function () {
+            this.ui.loadingImage.fadeIn('fast');
+          }, this)
         });
 
-      } else if ($.type(data.getNodeResponse) !== "undefined") {
-
-        // Retrieve the text we originally matched against
-        pattern = matchIndex[data.getNodeResponse.node.ID].text;
-
-        urls = getEntityUrls(data);
-        console.log('urls', urls);
-
-        // Fired when all the data is ready
-        done = function (url) {
-          addLinks({
-            id: urls[0].id,
-            pattern: pattern,
-            url: url
-          });
-        };
-
-        if (urls.length > 1) {
-          chooseUrls(pattern, urls, done);
-        } else {
-          done(urls[0].url);
-        }
-
       } else {
-        console.warn('INTERLINK PLUGIN - taxonomy call has returned no data');
+
+        // Turn off loading state
+        this.loadingState = false;
+
+        this.ui.loadingImage.fadeOut('fast', $.proxy(function () {
+          this.ui.loadingImage.remove();
+          this.ui.button.animate({
+            opacity: 1,
+            speed: 'fast'
+          });
+        }, this));
       }
     },
 
-    addLinks = function (data) {
-      var i, length, meta, currentMeta, linked, pattern, match, matched,
-        replacement, replacenator;
+    /**
+     * Fetch interlinks from two different API sources. The first provides
+     * entity matches from the text, the second provides meta information (with
+     * URLs) about entities.
+     *
+     * This is a textbook use case for defferreds, but we have to support
+     * jQuery 1.4.
+     */
+    _getInterlinks: function (callback) {
+      var self, options, i, length, content, outstandingCalls, matches,
+        getTagsFromText, receiveTagsData, getMetaForTag, receiveMetaData;
 
-      // Set the regex to global if we're supposed to match all entities
-      if (options.matchAllEntities) {
-        match = new RegExp('\\b' + data.pattern + '\\b', 'g');
-      } else {
-        // Otherwise just get the first
-        match = new RegExp('\\b' + data.pattern + '\\b');
-      }
+      // Save a reference to this
+      self = this;
+      options = this.options;
 
-      //console.log('INTERLINK PLUGIN - "' + pattern + '" matches taxonomy id ' + meta[currentMeta].ID);
+      // Keep track of oustanding AJAX Calls
+      // *mumblemumbleDeferredsmumblemumble*
+      outstandingCalls = 0;
+
+      // This array will ultimately contain all of our matches and URLs
+      matches = [];
+
+      // Content is an array of content items set in the options
+      // In this case, it's the contents and continued contents portions of
+      // the CK Editor
+      content = this.options.content;
 
       /**
-       * Perform a regex replacement on a textnode with text that may include
-       * html
-       * @param {string} replacement
-       * @see http://jsfiddle.net/v2yp5/4/
-       * @see http://stackoverflow.com/questions/6012163/whats-a-good-alternative-to-html-rewriting/6012345#6012345
+       * Submit contents of post to API
+       * @see http://wiki.office.aol.com/wiki/Get_Tags_by_SendText
+       * @param {string} content The text to submit to the API
        */
-      replacenator = function (replacement) {
-        var $span, text;
+      getTagsFromText = function (text) {
+        var content = this;
 
-        if (!options.matchAllEntities && matched) {
-          return;
-        }
+        blogsmith.ajaxProxy(options.getTagsApi, {
+          platform: 'BS',
+          app: blogsmith.getDomain(),
+          channel: _blog_name,
+          tagger: 'T',
+          title: blogsmith.getTitle(),
+          body: text,
+          sMatchTextTags: 1,
+          sOffsets: 1
+        }, $.proxy(receiveTagsData, content));
+      };
 
-        text = this.nodeValue;
+      /**
+       * Receive contents from getTagsFromText API
+       * @see http://wiki.office.aol.com/wiki/Get_Tags_by_SendText
+       * @param {Object} data Data from the getTagsFromText API
+       */
+      receiveTagsData = function (data) {
+        var content, i, length, tagsData, tag, tags, callback;
 
-        if (this.nodeValue.match(match)) {
+        content = this;
+        //console.log('content', content);
 
-          matched = true;
+        outstandingCalls -= 1;
 
-          matches += this.nodeValue.match(match).length;
+        // The Blogsmith AJAX Proxy returns a string - convert it to JS
+        tagsData = JSON.parse(data);
 
-          // We can't just change the text in the text node because our new
-          // content contains HTML. Instead, we create a blank span tag and
-          // populate its HTML with our new content.
-          $span = $('<span>', {
-            html: this.nodeValue.replace(match, replacement)
-          });
+        tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag;
 
-          // Insert our new content
-          $span.insertBefore(this);
+        callback = function (data) {
+          var tag = this;
+          receiveMetaData(data, content, tag);
+        };
 
-          // Remove the old content
-          this.parentNode.removeChild(this);
-
-          // Unwrap the blank span from around our new content
-          $span.contents().unwrap();
+        // Fetch meta data for each tag
+        for (i = 0, length = tags.length; i < length; i += 1) {
+          tag = tags[i];
+          if (tag.name === 'MATCHTEXT') {
+            if (tag.score > options.threshold) {
+              outstandingCalls += 1;
+              getMetaForTag(tag.taxoId, $.proxy(callback, tag));
+            }
+          }
         }
       };
 
-      // Reset the matched state for each new entity
-      matched = false;
+      /**
+       * Submit a tag id to the taxonomy API to get meta information about it.
+       * For us, the important meta information is URLs.
+       * @param {Number} tag A tag id
+       * @param {function} callback A callback function
+       */
+      getMetaForTag = function (tag, callback) {
 
-      // If we only want entities matched once
-      if (!options.matchAllEntities) {
+        blogsmith.ajaxProxy(options.taxonomyApi, {
+          qTxt: tag,
+          f: 'json',
+          authKey: 'ao1pcpvLTH7QU4gw',
+          client: 'BS'
+        }, $.proxy(callback, this));
 
-        // Check for existing interlinks first
-        if ($('a.interlink[href="' + data.url + '"]', newContents).length) {
-          matched = true;
-        }
-      }
+      };
 
-      // console.log('INTERLINK PLUGIN - found URL: ' + url);
+      /**
+       * Receive data from the meta data API for entities
+       * @param {Object} data
+       * @param {Object} content
+       * @param {Object} tag
+       */
+      receiveMetaData = function (data, content, tag) {
+        var i, length, match, meta;
+        //console.log('tag', tag);
 
-      //matches += 1;
-      replacement = "<a class='interlink' onclick=\"bN.set(\'blogsmith_interlink\', \'1\', true); bN.set(\'blogsmith_taxo_id\', \'" + data.id + "\', true);\" href=\'" + data.url + "'>" + data.pattern + "</a>";
+        data = JSON.parse(data);
 
-      console.info('INTERLINK PLUGIN - linking "' + data.pattern + '" to ' + data.url);
+        meta = data.getNodeResponse.node.meta;
 
-      try {
-        newContents.textWalk(replacenator, replacement);
-        newContinuedContents.textWalk(replacenator, replacement);
-        total += 1;
-      } catch (e) {
-        console.warn('INTERLINK PLUGIN - unable to modify post content to establish interlink');
-      }
+        match = {
+          text: tag.value,
+          offset: tag.instances.instance[0].offset,
+          // TODO: Is this ever not just the length of the text string?
+          length: tag.instances.instance[0].length,
+          urls: []
+        };
 
-      blogsmith.replaceIntoEditor(newContents.html(), 1);
-      blogsmith.replaceIntoEditor(newContinuedContents.html(), 2);
-
-      if (!taxonomyCallsOutstanding) {
-
-        // Visually highlight the content area to indicate change
-        // FIXME:  This is busted.  Need to investigate.
-        $('a.interlink').effect('highlight', 2000);
-
-        var message;
-
-        if (matches === 0) {
-          message = 'We found no interlinks to suggest.';
-        } else if (matches === 1) {
-          message = 'We found one suggested interlink, which has been placed in your post\'s contents.';
-        } else if (matches > 1) {
-          message = 'We found ' + matches + ' suggested interlinks, which have been placed in your post\'s contents.';
-        }
-
-        blogsmith.missive({
-          text: message
-        });
-
-        endLoading();
-
-      }
-
-    },
-
-    collectTaxonomyCodes = function (data) {
-
-      data = $.secureEvalJSON(data);
-
-      // Clear the error timer - we got results!
-      clearTimeout(errorTimeout);
-
-      if (data.statusCode !== 200) {
-        // TODO:  Need to report this automatically, perhaps by filing a ticket?
-        blogsmith.missive({
-          text: 'http://irshield.app.aol.com/rtnt/getTagsFromText returned code (' + data.statusCode + ' - ' + data.statusText + ').  Which is a real bummer.  We suggest trying again later.  If the problem persists, please send a note to central@teamaol.com.'
-        });
-        endLoading();
-      } else if ($.type(data.getTagsFromTextResponse.tags) === "undefined") {
-        blogsmith.missive({
-          text: 'We found no interlinks to suggest for your post\'s text. Thanks for checking!'
-        });
-        endLoading();
-      } else if (data.getTagsFromTextResponse.tags.matchTags.tag.length === 0) {
-        blogsmith.missive({
-          text: 'We found no interlinks to suggest for your post\'s text. Thanks for checking!'
-        });
-        endLoading();
-      } else {
-
-        var i = 0,
-        tags = data.getTagsFromTextResponse.tags.matchTags.tag,
-        length = tags.length,
-
-        // TODO:  Expose this in the UI to make it tunable.
-        threshold = 0.0,
-        hitThreshold = false;
-
-        while ((i < length) && !hitThreshold) {
-          if (tags[i].name === 'MATCHTEXT') {
-            if (tags[i].score > threshold) {
-              taxonomyCodes.push({
-                value: tags[i].value,
-                id: tags[i].taxoId
-              });
-            } else {
-              hitThreshold = true;
-            }
-          }
-          i++;
-        }
-
-        if (taxonomyCodes.length === 0) {
-          blogsmith.missive({
-            text: 'We found no interlinks to suggest for your post\'s text. Thanks for checking!'
-          });
-          endLoading();
-        } else {
-          taxonomyCallsOutstanding = taxonomyCodes.length;
-          i = taxonomyCallsOutstanding - 1;
-
-          while (i >= 0) {
-            // Remember which match text coes with which code so we can find the match text again when we get results back.
-            matchIndex[taxonomyCodes[i].id] = {
-              text: taxonomyCodes[i].value
-            };
-            blogsmith.ajaxProxy(API_URL + '?qTxt=' + taxonomyCodes[i].id + '&f=json&authKey=ao1pcpvLTH7QU4gw&client=BS', {}, receiveApiData);
-            console.log('INTERLINK PLUGIN - requesting taxononmy entries for "' + taxonomyCodes[i].value + '"');
-            i--;
+        for (i = 0, length = meta.length; i < length; i += 1) {
+          if (meta[i].metaType.displayName.indexOf('URL') > -1) {
+            match.urls.push(meta[i].metaValue);
           }
         }
+
+        if (match.urls.length) {
+          content.matches.push(match);
+        }
+
+        outstandingCalls -= 1;
+
+        // If there are no more outstanding calls...
+        if (outstandingCalls < 1) {
+
+          // Fire the callback
+          callback(self.options.content);
+
+          // And turn off the visual loading state
+          self._loading(false);
+        }
+
+      };
+
+      // Turn on visual loading state of button
+      this._loading(true);
+
+      for (i = 0, length = content.length; i < length; i += 1) {
+        outstandingCalls += 1;
+        content[i].matches = [];
+        getTagsFromText.call(content[i], content[i].get());
       }
     },
 
-    // Visually indicate loading status
-    startLoading = function () {
-      // Temporarily set height to prevent it from changing as a result of adding the loading graphic
-      plugin.height(plugin.height());
+    _chooseUrls: function () {
+      this._addLinks();
+    },
 
-      // Fade in loading graphic
-      button.fadeOut('fast', function () {
-        loadingImage.wrap('<span />').hide().insertAfter(button).fadeIn('fast');
+    _addLinks: function () {
+      var i, length, content;
+
+      content = this.options.content;
+
+      $.each(content, function (i, contentItem) {
+        var contentArray, newContent;
+
+        // Turn the content string into an array split on each character
+        contentArray = contentItem.get().split('');
+
+        $.each(contentItem.matches, function (i, match) {
+          //console.log('match', match);
+
+          // Use the offset to find the right position in the array to add new
+          // html content
+          contentArray[match.offset] = [
+            '<a class="interlink" href="',
+            match.urls[0],
+            '">',
+            contentArray[match.offset]
+          ].join('');
+
+          // Find the end of the match and add new html
+          contentArray[match.offset + match.length - 1] = [
+            contentArray[match.offset + match.length - 1],
+            '</a>'
+          ].join('');
+
+          newContent = contentArray.join('');
+          contentItem.set(newContent);
+        });
+
       });
     },
 
-    // End visual indication of loading status
-    endLoading = function () {
-      loadingImage.fadeOut('fast', function () {
-        $(this).remove();
-        button.fadeIn('fast');
-        plugin.height('auto');
-      });
-    };
-
-    startLoading();
-    submitContents(blogsmith, _blog_name, title, postContents, postContinuedContents);
-
-    e.preventDefault();
-
+    destroy: function () {
+      // In jQuery UI 1.8, you must invoke the destroy method from the base widget
+      $.Widget.prototype.destroy.call(this);
+    }
   });
-
 })(jQuery, blogsmith);
+
+// On DOM Ready...
+$(document).ready(function () {
+
+  // Initialize the interlinks widget on an empty span
+  $('<span>').interlinks();
+});
