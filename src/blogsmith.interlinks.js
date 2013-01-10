@@ -59,7 +59,8 @@ if (typeof blogsmith.missive !== 'function') {
 
     // These options will be used as defaults
     options: {
-      getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
+      // getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
+      getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
       taxonomyApi: 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta',
       threshold: 0.0,
       matchAllEntities: true,
@@ -108,6 +109,8 @@ if (typeof blogsmith.missive !== 'function') {
     },
 
     _create: function () {
+      this.debug = true;
+
       this._addTool();
       this._bindEvents();
       this._addCKStyles();
@@ -134,6 +137,7 @@ if (typeof blogsmith.missive !== 'function') {
     _addTool: function () {
       this.element.addClass('add-interlinks');
       this.element.append(this.ui.button);
+      this.ui.button.css('border', '1px solid red');
       this.element.appendTo('#postsave_extended');
     },
 
@@ -283,7 +287,8 @@ if (typeof blogsmith.missive !== 'function') {
           sOffsets: 1
         }, function (data) {
           var queueLength;
-          //console.log(data);
+
+          //self._debug('tag data', data);
 
           contentCallbackQueue.queue('contentCallbacks', function (next) {
             receiveTagsData.call(content, data);
@@ -322,8 +327,10 @@ if (typeof blogsmith.missive !== 'function') {
           self._error(tagsData.statusCode, tagsData.statusText);
         }
 
-        //console.log(tagsData);
+        self._debug(tagsData);
         tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag;
+
+        //console.log('tags', tags);
 
         callback = function (data) {
           var tag = this;
@@ -334,11 +341,13 @@ if (typeof blogsmith.missive !== 'function') {
         for (i = 0, length = tags.length; i < length; i += 1) {
           tag = tags[i];
 
+          //console.log('tag.name?', tag.name);
           // If it has the proper tag name...
           if (tag.name === 'MATCHTEXT') {
 
             // And we haven't gotten this entity already...
             if (!options.matchAllEntities || $.inArray(tag.taxoId, entities) < 0) {
+              //console.log('tag.score', tag.score);
 
               // And it passes our threshold
               if (tag.score > options.threshold) {
@@ -347,6 +356,7 @@ if (typeof blogsmith.missive !== 'function') {
                 outstandingCalls += 1;
                 entities.push(tag.taxoId);
                 getMetaForTag(tag.taxoId, $.proxy(callback, tag));
+                //console.log('entities', entities);
               }
             }
           }
@@ -360,6 +370,8 @@ if (typeof blogsmith.missive !== 'function') {
        * @param {function} callback A callback function
        */
       getMetaForTag = function (tag, callback) {
+
+        //console.log('getting meta for tag', tag);
 
         blogsmith.ajaxProxy(options.taxonomyApi, {
           qTxt: tag,
@@ -381,7 +393,7 @@ if (typeof blogsmith.missive !== 'function') {
         metaTypeId = parseInt(meta.metaType.ID, 10);
 
         disallowed = [
-          124, // musicbrainz
+          //124, // musicbrainz
           130 // autos.aol.com
         ];
 
@@ -396,11 +408,13 @@ if (typeof blogsmith.missive !== 'function') {
        */
       receiveMetaData = function (data, content, tag) {
         var i, length, match, meta, domain;
-        //console.log('tag', tag);
+
+        self._debug('tag', tag);
 
         data = JSON.parse(data);
 
-        //console.log('data', data);
+        //self._debug('data', data);
+
         if (data.getNodeResponse) {
           meta = data.getNodeResponse.node.meta || 'undefined';
         }
@@ -416,6 +430,9 @@ if (typeof blogsmith.missive !== 'function') {
           };
 
           for (i = 0, length = meta.length; i < length; i += 1) {
+
+            self._debug(meta[i].metaType.displayName);
+
             if (meta[i].metaType.displayName.indexOf('URL') > -1) {
               if (urlFilter(meta[i])) {
                 match.urls.push(meta[i].metaValue);
@@ -557,8 +574,9 @@ if (typeof blogsmith.missive !== 'function') {
     },
 
     _addLinks: function () {
-      var content, totalMatches, missiveText;
+      var self, content, totalMatches, missiveText;
 
+      self = this;
       content = this.options.content;
       totalMatches = 0;
 
@@ -569,7 +587,7 @@ if (typeof blogsmith.missive !== 'function') {
         contentArray = contentItem.get().split('');
 
         $.each(contentItem.matches, function (i, match) {
-          //console.log('match', match);
+          self._debug('match', match);
 
           // Use the offset to find the right position in the array to add new
           // html content
@@ -613,6 +631,16 @@ if (typeof blogsmith.missive !== 'function') {
       blogsmith.missive({
         text: statusCode + ': ' + statusText
       });
+    },
+
+    _debug: function (label, message) {
+      if (!this.debug) {
+        return;
+      } else {
+        if (window.console) {
+          console.log('Interlinks:', label + ':', message);
+        }
+      }
     },
 
     destroy: function () {

@@ -1,0 +1,285 @@
+<!doctype html>
+<html>
+
+<head>
+<title>getTagsFromText</title>
+
+<style>
+body {
+  background-color: #333;
+  color: #ccc;
+  font-family: Helvetica, sans-serif;
+  font-size: 18px;
+  padding: 25px;
+}
+
+textarea {
+  height: 300px;
+  width: 500px;
+}
+
+ul {
+  list-style: none;
+}
+
+li {
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-size: 36px;
+  margin-bottom: 0.5em;
+  padding-left: 200px;
+}
+
+label {
+  // border: 1px solid red;
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  padding: 5px;
+
+}
+
+label span {
+  // border: 1px solid orange;
+  color: hsl(100, 50%, 50%);
+  float: left;
+  padding-right: 5px;
+  text-align: right;
+  width: 200px;
+}
+
+.inline {
+  font-size: 16px;
+  overflow: hidden;
+  padding-left: 200px;
+}
+
+.inline label {
+  float: left;
+  width: 150px;
+}
+
+li.buttons {
+  margin-left: 200px;
+}
+input[type=submit],
+input[type=button] {
+  font-size: 24px;
+}
+</style>
+
+
+</head>
+
+<body>
+<h1>Get Tags From Text</h1>
+
+<form action="sendText.html" method="get">
+
+  <ul>
+    <li>
+    <label>
+      <span>tagger (T|I):</span>
+      <input type="text" name="tagger" value="T" size="1" />
+    </label>
+    </li>
+
+    <li>
+    <label>
+      <span>platform (BS|HP):</span>
+      <input type="text" name="platform" value="BS" size="2" />
+    </label>
+    </li>
+
+    <li>
+    <label>
+      <span>app:</span>
+      <input type="text" name="app" value="" size="64" />
+    </label>
+    </li>
+
+    <li>
+    <label>
+      <span>channel/blog:</span>
+      <input type="text" name="channel" value="" size="64" />
+    </label>
+    </li>
+
+    <li>
+    <label>
+      <span>postId:</span>
+      <input type="text" name="postId" value="" size="32" />
+    </label>
+    </li>
+
+    <li>
+    <label>
+      <span>url:</span>
+      <input type="text" name="url" value="" size="128" />
+    </label>
+    </li>
+
+    <li>
+    <label>
+      <span>jsonCB:</span>
+      <input type="text" name="cb" value="" size="32" />
+    </label>
+    </li>
+
+    <li class="inline">
+    <label>
+      <input type="checkbox" name="sSubjectTags" /> SubjectTags
+    </label>
+
+    <label>
+      <input type="checkbox" name="sEntityTags" /> EntityTags
+    </label>
+
+    <label>
+      <input type="checkbox" name="sMatchTextTags" /> MatchTextTags
+    </label>
+
+    <label>
+      <input type="checkbox" name="sOffsets" /> Offsets
+    </label>
+
+    <label>
+      <input type="checkbox" name="sMeta" /> Metadata
+    </label>
+
+    </li>
+
+    <li>
+    <label>
+      <span>title:</span>
+      <input type="text" name="title" value="" size="128" />
+    </label>
+    </li>
+
+    <li>
+    <label>
+      <span>body:</span>
+      <textarea name="body"></textarea>
+    </label>
+
+    </li>
+
+    <li class="buttons">
+    <label>
+      <input type="submit" value="Save Params to Query String" />
+    </label>
+    </li>
+
+    <li class="buttons">
+    <label>
+      <input id="query" type="button" value="Submit Query" />
+    </label>
+    </li>
+
+    <li class="buttons">
+    <label>
+      <input id="reset" type="button" value="Reset" />
+    </label>
+    </li>
+
+  </ul>
+
+</form>
+
+<div id="data"></div>
+
+<script src="http://code.jquery.com/jquery-latest.min.js"></script>
+<script>
+function getQueryString() {
+  var result = {}, queryString = location.search.substring(1),
+  re = /([^&=]+)=([^&]*)/g, m;
+
+  while (m = re.exec(queryString)) {
+    result[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
+  }
+
+  return result;
+}
+
+var myParams = getQueryString();
+
+// console.log('myParams', myParams);
+
+$(document).ready(function () {
+  var params = getQueryString();
+
+  for (name in params) {
+    var $element = $('[name=' + name + ']');
+
+    if ($element.attr('type') === 'checkbox') {
+      if (params[name] === 'on') {
+        $element.attr('checked', true);
+      } else {
+        $element.attr('checked', false);
+      }
+    } else {
+      $element.val(decodeURIComponent(params[name]));
+    }
+  }
+
+});
+
+var safe = false;
+
+$(document).on('submit', 'form', function (event) {
+  if (!safe) {
+    $('input[type=text], textarea').each(function (i, item) {
+      var $item = $(item),
+        value = $item.val();
+
+      $item.val(encodeURIComponent(value));
+    });
+
+    // console.log('not safe yet');
+    safe = true;
+    event.preventDefault();
+    console.log($('form'));
+    $('form').first().submit();
+
+  } else {
+    // console.log('safe now');
+  }
+});
+
+$(document).on('click', '#reset', function (event) {
+  window.location.href = 'sendText.html';
+});
+
+$(document).on('click', '#query', function (event) {
+  var queryString = getQueryString(),
+    callback = queryString.cb || '';
+
+  delete queryString.cb;
+
+  for (item in queryString) {
+  }
+
+  event.preventDefault();
+
+  $.ajax({
+    url: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
+    data: queryString,
+    dataType: 'jsonp',
+    jsonp: 'callback',
+    jsonpCallback: callback,
+    success: function (data) {
+      console.log('API Response:', data);
+      var response = JSON.stringify(data);
+      $('#data').text('The response has been output to your console.');
+    }
+  });
+
+});
+
+</script>
+
+</body>
+</html>
