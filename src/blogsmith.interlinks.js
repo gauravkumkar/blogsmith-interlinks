@@ -137,7 +137,6 @@ if (typeof blogsmith.missive !== 'function') {
     _addTool: function () {
       this.element.addClass('add-interlinks');
       this.element.append(this.ui.button);
-      this.ui.button.css('border', '1px solid red');
       this.element.appendTo('#postsave_extended');
     },
 
