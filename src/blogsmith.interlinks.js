@@ -55,7 +55,7 @@ if (typeof blogsmith.missive !== 'function') {
  * @see http://wiki.jqueryui.com/w/page/12138135/Widget%20factory
  */
 (function ($, blogsmith) {
-  $.widget('blogsmith.devinterlinks', {
+  $.widget('blogsmith.interlinks', {
 
     // These options will be used as defaults
     options: {
@@ -701,5 +701,5 @@ if (typeof blogsmith.missive !== 'function') {
 $(document).ready(function () {
 
   // Initialize the interlinks widget on an empty span
-  $('<span>').devinterlinks();
+  $('<span>').interlinks();
 });
