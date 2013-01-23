@@ -55,7 +55,7 @@ if (typeof blogsmith.missive !== 'function') {
  * @see http://wiki.jqueryui.com/w/page/12138135/Widget%20factory
  */
 (function ($, blogsmith) {
-  $.widget('blogsmith.interlinks', {
+  $.widget('blogsmith.devinterlinks', {
 
     // These options will be used as defaults
     options: {
@@ -109,8 +109,6 @@ if (typeof blogsmith.missive !== 'function') {
     },
 
     _create: function () {
-      this.debug = true;
-
       this._addTool();
       this._bindEvents();
       this._addCKStyles();
@@ -150,13 +148,21 @@ if (typeof blogsmith.missive !== 'function') {
       // Add custom config settings to CK Editor
       BS.editor.userConfig._all = {
         //contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/css/style.css']
-        contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://localhost:8000/src/blogsmith.interlinks.css']
+        contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://localhost:8000/src/blogsmith.devinterlinks.css']
       };
     },
 
     _bindEvents: function () {
       this.element.bind('click', $.proxy(function (event) {
         event.preventDefault();
+
+        // Allow devs to turn on debugging from the console
+        if (window.DEBUG_INTERLINKS) {
+          this.debug = true;
+        } else {
+          this.debug = false;
+        }
+
         this._getInterlinks($.proxy(this._chooseUrls, this));
       }, this));
     },
@@ -326,10 +332,19 @@ if (typeof blogsmith.missive !== 'function') {
           self._error(tagsData.statusCode, tagsData.statusText);
         }
 
-        self._debug(tagsData);
         tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag;
 
-        //console.log('tags', tags);
+        // Sort tags according to the position of the text they matched
+        tags.sort(function (a, b) {
+          var offset1, offset2;
+
+          offset1 = a.instances.instance[0].offset;
+          offset2 = b.instances.instance[0].offset;
+
+          return offset1 - offset2;
+        });
+
+        self._debug('Returned tags', tags, true);
 
         callback = function (data) {
           var tag = this;
@@ -346,7 +361,8 @@ if (typeof blogsmith.missive !== 'function') {
 
             // And we haven't gotten this entity already...
             if (!options.matchAllEntities || $.inArray(tag.taxoId, entities) < 0) {
-              //console.log('tag.score', tag.score);
+              self._debug('Match:', tag);
+              self._debug('Score:', tag.score);
 
               // And it passes our threshold
               if (tag.score > options.threshold) {
@@ -357,6 +373,9 @@ if (typeof blogsmith.missive !== 'function') {
                 getMetaForTag(tag.taxoId, $.proxy(callback, tag));
                 //console.log('entities', entities);
               }
+            } else {
+              self._debug('Tag:', tag);
+              self._debug('Skipped:', tag.value + ' (' + tag.taxoId + ') is already present in the returned entities array.');
             }
           }
         }
@@ -392,7 +411,7 @@ if (typeof blogsmith.missive !== 'function') {
         metaTypeId = parseInt(meta.metaType.ID, 10);
 
         disallowed = [
-          //124, // musicbrainz
+          124, // musicbrainz
           130 // autos.aol.com
         ];
 
@@ -408,11 +427,11 @@ if (typeof blogsmith.missive !== 'function') {
       receiveMetaData = function (data, content, tag) {
         var i, length, match, meta, domain;
 
-        self._debug('tag', tag);
+        self._debug('Meta data for', tag.value, true);
 
         data = JSON.parse(data);
 
-        //self._debug('data', data);
+        self._debug('data', data);
 
         if (data.getNodeResponse) {
           meta = data.getNodeResponse.node.meta || 'undefined';
@@ -430,11 +449,13 @@ if (typeof blogsmith.missive !== 'function') {
 
           for (i = 0, length = meta.length; i < length; i += 1) {
 
-            self._debug(meta[i].metaType.displayName);
+            self._debug('Meta:', meta[i].metaType.displayName);
 
             if (meta[i].metaType.displayName.indexOf('URL') > -1) {
               if (urlFilter(meta[i])) {
                 match.urls.push(meta[i].metaValue);
+              } else {
+                self._debug('URL:', meta[i].metaType.displayName + ' was rejected by the URL filter.');
               }
             }
           }
@@ -585,27 +606,32 @@ if (typeof blogsmith.missive !== 'function') {
         // Turn the content string into an array split on each character
         contentArray = contentItem.get().split('');
 
-        $.each(contentItem.matches, function (i, match) {
-          self._debug('match', match);
+        if (contentItem.matches.length) {
+          self._debug('Final report', '•', true);
 
-          // Use the offset to find the right position in the array to add new
-          // html content
-          contentArray[match.offset] = [
-            "<a class=\"interlink\" onclick=\"bN.set(\'blogsmith_interlink\', \'`\', true); bN.set(\'blogsmith_taxo_id\', \'" + match.taxoId + "\', true);\" href=",
-            match.urls[0],
-            '">',
-            contentArray[match.offset]
-          ].join('');
+          $.each(contentItem.matches, function (i, match) {
+            self._debug('Matches with allowed URLs:', match);
 
-          // Find the end of the match and add new html
-          contentArray[match.offset + match.length - 1] = [
-            contentArray[match.offset + match.length - 1],
-            '</a>'
-          ].join('');
+            // Use the offset to find the right position in the array to add new
+            // html content
+            contentArray[match.offset] = [
+              "<a class=\"interlink\" onclick=\"bN.set(\'blogsmith_interlink\', \'`\', true); bN.set(\'blogsmith_taxo_id\', \'" + match.taxoId + "\', true);\" href=",
+              match.urls[0],
+              '">',
+              contentArray[match.offset]
+            ].join('');
 
-          totalMatches += 1;
+            // Find the end of the match and add new html
+            contentArray[match.offset + match.length - 1] = [
+              contentArray[match.offset + match.length - 1],
+              '</a>'
+            ].join('');
 
-        });
+            totalMatches += 1;
+
+          });
+
+        }
 
         newContent = contentArray.join('');
         contentItem.set(newContent);
@@ -632,12 +658,34 @@ if (typeof blogsmith.missive !== 'function') {
       });
     },
 
-    _debug: function (label, message) {
+    /*
+     * Ouput debugging info to the console. This lets developers opt in to
+     * verbose debugging output if they need to examine the inner workings of
+     * the plugin.
+     */
+    _debug: function (label, message, heading) {
+      var i, separator;
+      heading = heading || false;
       if (!this.debug) {
         return;
       } else {
         if (window.console) {
-          console.log('Interlinks:', label + ':', message);
+
+          if (heading) {
+            // Match the separator to the length of the heading output
+            // TODO: fix the hardcoding of characters to labels.
+            i = 12 + label.length + 1 + message.length;
+            separator = '';
+            while (i) {
+              separator += '¯';
+              i -= 1;
+            }
+            console.log('\n' + separator);
+            console.log('Interlinks:', label, message);
+            console.log('\n' + separator);
+          } else {
+            console.log('Interlinks:', label, message);
+          }
         }
       }
     },
@@ -653,5 +701,5 @@ if (typeof blogsmith.missive !== 'function') {
 $(document).ready(function () {
 
   // Initialize the interlinks widget on an empty span
-  $('<span>').interlinks();
+  $('<span>').devinterlinks();
 });
