@@ -279,9 +279,10 @@ if (typeof blogsmith.missive !== 'function') {
        * @param {string} content The text to submit to the API
        */
       getTagsFromText = function (text) {
-        var content = this;
+        var outgoingData,
+          content = this;
 
-        blogsmith.ajaxProxy(options.getTagsApi, {
+        outgoingData = {
           platform: 'BS',
           app: blogsmith.getDomain(),
           channel: _blog_name,
@@ -290,7 +291,11 @@ if (typeof blogsmith.missive !== 'function') {
           body: text,
           sMatchTextTags: 1,
           sOffsets: 1
-        }, function (data) {
+        };
+
+        self._debug('Outgoing data:', outgoingData);
+
+        blogsmith.ajaxProxy(options.getTagsApi, outgoingData, function (data) {
           var queueLength;
 
           //self._debug('tag data', data);
@@ -321,7 +326,7 @@ if (typeof blogsmith.missive !== 'function') {
 
         content = this;
         //console.log('content', content);
-        //console.log('data', data);
+        self._debug('Data:', data);
 
         outstandingCalls -= 1;
 
@@ -330,6 +335,14 @@ if (typeof blogsmith.missive !== 'function') {
 
         if (tagsData.statusCode !== 200) {
           self._error(tagsData.statusCode, tagsData.statusText);
+          return;
+        }
+
+        self._debug('tagsData', tagsData);
+
+        if (!tagsData.getTagsFromTextResponse.tags) {
+          self._error('Response', 'We found no interlinks to suggest.');
+          return;
         }
 
         tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag;
