@@ -49,6 +49,12 @@ module.exports = function (grunt) {
         }
       }
     },
+    exec: {
+      // Copy the contents of the combined dist file to the clipboard
+      copy_dist: {
+        command: 'pbcopy < dist/blogsmith.interlinks.html'
+      }
+    },
     jshint: {
       options: {
         boss: true,
@@ -72,10 +78,12 @@ module.exports = function (grunt) {
   });
 
   grunt.loadNpmTasks('grunt-replace');
+  grunt.loadNpmTasks('grunt-exec');
 
   // Default task.
   grunt.registerTask('default', 'lint concat replace');
 
   grunt.registerTask('watch-serve', 'server watch');
+  grunt.registerTask('copy', 'exec:copy_dist');
 
 };
