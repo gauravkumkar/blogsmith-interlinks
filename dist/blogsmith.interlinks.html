@@ -1,5 +1,5 @@
 <!--
-* Interlinks - v0.1.0 - 2013-02-13, 5:22PM EST
+* Interlinks - v0.1.0 - 2013-02-13, 5:32PM EST
 * A Blogsmith plugin for adding relevant links to internal content to Blogsmith posts.
 * https://github.com/aol/blogsmith-interlinks
 * Copyright (c) 2013 Nate Eagle and Shawn Carnell; Licensed BSD
@@ -465,17 +465,33 @@ if (typeof blogsmith.missive !== 'function') {
        * @returns Boolean
        */
       urlFilter = function (meta) {
-        var metaTypeId, disallowed;
+        var metaTypeId, allowed;
 
         metaTypeId = parseInt(meta.metaType.ID, 10);
 
-        disallowed = [
-          124, // musicbrainz
-          130 // autos.aol.com
+        allowed = [
+          127, // AOL Music
+          99, // Huffpo Big News
+          129, // Autoblog
+          130 // AOL Autos
         ];
 
-        return ($.inArray(metaTypeId, disallowed) < 0) ? true : false;
+        return ($.inArray(metaTypeId, allowed) > -1);
       };
+
+      // Saving this in case we return to a blacklist, rather than a whitelist
+      //urlFilter = function (meta) {
+        //var metaTypeId, disallowed;
+
+        //metaTypeId = parseInt(meta.metaType.ID, 10);
+
+        //disallowed = [
+          //124, // musicbrainz
+          //130 // autos.aol.com
+        //];
+
+        //return ($.inArray(metaTypeId, disallowed) < 0) ? true : false;
+      //};
 
       /**
        * Receive data from the meta data API for entities
