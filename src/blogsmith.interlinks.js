@@ -322,10 +322,9 @@ if (typeof blogsmith.missive !== 'function') {
        * @param {Object} data Data from the getTagsFromText API
        */
       receiveTagsData = function (data) {
-        var content, i, length, tagsData, tag, tags, callback;
+        var content, i, length, tagsData, tag, tags, callback, stripInstances;
 
         content = this;
-        //console.log('content', content);
         self._debug('Data:', data);
 
         outstandingCalls -= 1;
@@ -346,6 +345,32 @@ if (typeof blogsmith.missive !== 'function') {
         }
 
         tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag;
+
+        // Remove any instances of tags that are not in the body
+        stripInstances = function (tags) {
+
+          $.each(tags, function (i, tag) {
+            var j, instances, instance;
+
+            if (tag.instances) {
+              instances = tag.instances.instance;
+
+              for (j = instances.length - 1; j >= 0; j -= 1) {
+                if (instances[j].field !== 'Body') {
+                  instances.splice(j, 1);
+                }
+              }
+            }
+
+            // If there are no instances left...
+            if (!tag.instances) {
+              // Remove this tag
+              tags.splice(i, 1);
+            }
+          });
+        };
+
+        stripInstances(tags);
 
         // Sort tags according to the position of the text they matched
         tags.sort(function (a, b) {
@@ -368,7 +393,6 @@ if (typeof blogsmith.missive !== 'function') {
         for (i = 0, length = tags.length; i < length; i += 1) {
           tag = tags[i];
 
-          //console.log('tag.name?', tag.name);
           // If it has the proper tag name...
           if (tag.name === 'MATCHTEXT') {
 

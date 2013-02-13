@@ -1,5 +1,5 @@
 <!--
-* Interlinks - v0.1.0 - 2013-02-13, 1:57PM EST
+* Interlinks - v0.1.0 - 2013-02-13, 5:22PM EST
 * A Blogsmith plugin for adding relevant links to internal content to Blogsmith posts.
 * https://github.com/aol/blogsmith-interlinks
 * Copyright (c) 2013 Nate Eagle and Shawn Carnell; Licensed BSD
@@ -344,10 +344,9 @@ if (typeof blogsmith.missive !== 'function') {
        * @param {Object} data Data from the getTagsFromText API
        */
       receiveTagsData = function (data) {
-        var content, i, length, tagsData, tag, tags, callback;
+        var content, i, length, tagsData, tag, tags, callback, stripInstances;
 
         content = this;
-        //console.log('content', content);
         self._debug('Data:', data);
 
         outstandingCalls -= 1;
@@ -368,6 +367,32 @@ if (typeof blogsmith.missive !== 'function') {
         }
 
         tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag;
+
+        // Remove any instances of tags that are not in the body
+        stripInstances = function (tags) {
+
+          $.each(tags, function (i, tag) {
+            var j, instances, instance;
+
+            if (tag.instances) {
+              instances = tag.instances.instance;
+
+              for (j = instances.length - 1; j >= 0; j -= 1) {
+                if (instances[j].field !== 'Body') {
+                  instances.splice(j, 1);
+                }
+              }
+            }
+
+            // If there are no instances left...
+            if (!tag.instances) {
+              // Remove this tag
+              tags.splice(i, 1);
+            }
+          });
+        };
+
+        stripInstances(tags);
 
         // Sort tags according to the position of the text they matched
         tags.sort(function (a, b) {
@@ -390,7 +415,6 @@ if (typeof blogsmith.missive !== 'function') {
         for (i = 0, length = tags.length; i < length; i += 1) {
           tag = tags[i];
 
-          //console.log('tag.name?', tag.name);
           // If it has the proper tag name...
           if (tag.name === 'MATCHTEXT') {
 
