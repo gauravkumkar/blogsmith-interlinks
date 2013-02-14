@@ -111,7 +111,6 @@ if (typeof blogsmith.missive !== 'function') {
     _create: function () {
       this._addTool();
       this._bindEvents();
-      this._addCKStyles();
     },
 
     _setOption: function (key, value) {
@@ -140,16 +139,18 @@ if (typeof blogsmith.missive !== 'function') {
 
     /**
      * Add custom CSS to the CK Editor to visually highlight interlinks.
-     * TODO: I would really, really like to do this without an external css
-     * file so we don't have to manage another file on the origin server.
      */
-    _addCKStyles: function () {
+    _highlightInterlinks: function () {
+      $.each(CKEDITOR.instances, function (i, instance) {
+        var $doc, style;
 
-      // Add custom config settings to CK Editor
-      BS.editor.userConfig._all = {
-        //contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://o.aolcdn.com/os/blogsmith/plugins/aol-interlinks/css/style.css']
-        contentsCss: ['/js/ckeditor_bs/themes/ckPixie/contents.css', 'http://localhost:8000/src/blogsmith.devinterlinks.css']
-      };
+        // Access the document in the CKEDITOR instance iframe
+        // http://stackoverflow.com/questions/1844569/ckeditor-class-or-id-for-editor-body
+        $doc = $(instance.document.$);
+        style = $doc.find('style');
+
+        style.append('a.interlink { background-color: hsl(200, 100%, 80%); }');
+      });
     },
 
     _bindEvents: function () {
@@ -307,8 +308,6 @@ if (typeof blogsmith.missive !== 'function') {
 
           queueLength = contentCallbackQueue.queue('contentCallbacks').length;
 
-          //console.log('queueLength', queueLength);
-
           if (queueLength >= expectedContent) {
             contentCallbackQueue.dequeue('contentCallbacks');
           }
@@ -408,7 +407,6 @@ if (typeof blogsmith.missive !== 'function') {
                 outstandingCalls += 1;
                 entities.push(tag.taxoId);
                 getMetaForTag(tag.taxoId, $.proxy(callback, tag));
-                //console.log('entities', entities);
               }
             } else {
               self._debug('Tag:', tag);
@@ -425,8 +423,6 @@ if (typeof blogsmith.missive !== 'function') {
        * @param {function} callback A callback function
        */
       getMetaForTag = function (tag, callback) {
-
-        //console.log('getting meta for tag', tag);
 
         blogsmith.ajaxProxy(options.taxonomyApi, {
           qTxt: tag,
@@ -702,6 +698,9 @@ if (typeof blogsmith.missive !== 'function') {
       blogsmith.missive({
         text: missiveText
       });
+
+      // Visually highlight the interlinks that we've placed
+      this._highlightInterlinks();
     },
 
     _error: function (statusCode, statusText) {
