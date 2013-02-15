@@ -39,7 +39,7 @@ module.exports = function (grunt) {
       dist: {
         options: {
           variables: {
-            'css': '<%= grunt.file.read("src/blogsmith.interlinks.css") %>',
+            //'css': '<%= grunt.file.read("src/blogsmith.interlinks.css") %>',
             'js': '<%= grunt.file.read("src/blogsmith.interlinks.js") %>'
           },
           prefix: '@@'

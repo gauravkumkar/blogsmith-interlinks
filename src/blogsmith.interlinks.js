@@ -70,8 +70,17 @@ if (typeof blogsmith.missive !== 'function') {
           get: function () {
             return blogsmith.getContents.call(blogsmith);
           },
-          set: function (html) {
-            blogsmith.replaceIntoEditor(html, 1);
+          set: function (html, callback) {
+            var editor;
+
+            editor = blogsmith._selectEditor(1);
+
+            if (typeof callback === 'function') {
+              editor.setData(html, callback);
+            } else {
+              editor.setData(html);
+            }
+            //blogsmith.replaceIntoEditor(html, 1);
           }
         },
         {
@@ -79,8 +88,17 @@ if (typeof blogsmith.missive !== 'function') {
           get: function () {
             return blogsmith.getContinuedContents.call(blogsmith);
           },
-          set: function (html) {
-            blogsmith.replaceIntoEditor(html, 2);
+          set: function (html, callback) {
+            var editor;
+
+            editor = blogsmith._selectEditor(2);
+
+            if (typeof callback === 'function') {
+              editor.setData(html, callback);
+            } else {
+              editor.setData(html);
+            }
+            //blogsmith.replaceIntoEditor(html, 2);
           }
         }
       ]
@@ -144,12 +162,14 @@ if (typeof blogsmith.missive !== 'function') {
       $.each(CKEDITOR.instances, function (i, instance) {
         var $doc, style;
 
-        // Access the document in the CKEDITOR instance iframe
-        // http://stackoverflow.com/questions/1844569/ckeditor-class-or-id-for-editor-body
-        $doc = $(instance.document.$);
-        style = $doc.find('style');
+        if (instance.document) {
+          // Access the document in the CKEDITOR instance iframe
+          // http://stackoverflow.com/questions/1844569/ckeditor-class-or-id-for-editor-body
+          $doc = $(instance.document.$);
+          style = $doc.find('style');
 
-        style.append('a.interlink { background-color: hsl(200, 100%, 80%); }');
+          style.append('a.interlink { background-color: hsl(200, 100%, 80%); }');
+        }
       });
     },
 
@@ -234,6 +254,51 @@ if (typeof blogsmith.missive !== 'function') {
       }
     },
 
+    // Normalize the HTML that's in our content. We need to use jQuery
+    // to parse the HTML to interact with links later on, which has the
+    // side-effect of normalization... ie, omitting duplicate closing
+    // tags, changing whether <br> tags are self-closing, etc.
+    //
+    // Because we are using offset values to add links to matches, we
+    // can't have the number of characters in the content change.
+    //
+    // To avoid that, we'll just normalize it first.
+    _normalizeHtml: function (text, content, callback) {
+      var $wrapper, normalized, stripped;
+
+      $wrapper = $('<div />').html(text);
+      normalized = $wrapper.html();
+
+      return normalized;
+    },
+
+    _stripLinks: function (text) {
+      var $textWrapper, $links, strippedText;
+
+      $textWrapper = $('<div />').html(text);
+      $links = $textWrapper.find('a');
+
+      $links.each(function (i, link) {
+        var j, length, $link, replacement;
+
+        $link = $(link);
+
+        length = $link.html().length;
+
+        replacement = '';
+
+        for (j = 0; j < length; j += 1) {
+          replacement += '-';
+        }
+
+        $link.html(replacement);
+      });
+
+      strippedText = $textWrapper.html();
+
+      return $textWrapper.html();
+    },
+
     /**
      * Fetch interlinks from two different API sources. The first provides
      * entity matches from the text, the second provides meta information (with
@@ -311,7 +376,6 @@ if (typeof blogsmith.missive !== 'function') {
           if (queueLength >= expectedContent) {
             contentCallbackQueue.dequeue('contentCallbacks');
           }
-          //contentCallbackQueue.dequeue('contentCallbacks');
         });
       };
 
@@ -434,7 +498,8 @@ if (typeof blogsmith.missive !== 'function') {
       };
 
       /**
-       * Provide some domain-specific filtering for URLs. We've been promised that this will be incorporated into the API in the future.
+       * Provide some domain-specific filtering for URLs. We've been promised
+       * that this will be incorporated into the API in the future.
        * @param {Object} meta A meta tag from the API
        * @returns Boolean
        */
@@ -478,39 +543,46 @@ if (typeof blogsmith.missive !== 'function') {
 
         self._debug('Meta data for', tag.value, true);
 
-        data = JSON.parse(data);
-
-        self._debug('data', data);
-
-        if (data.getNodeResponse) {
-          meta = data.getNodeResponse.node.meta || 'undefined';
+        try {
+          data = JSON.parse(data);
+        }
+        catch (error) {
+          self._debug('Error:', error);
         }
 
-        if (meta) {
-          match = {
-            text: tag.value,
-            taxoId: tag.taxoId,
-            offset: tag.instances.instance[0].offset,
-            // TODO: Is this ever not just the length of the text string?
-            length: tag.instances.instance[0].length,
-            urls: []
-          };
+        if (data) {
+          self._debug('data', data);
 
-          for (i = 0, length = meta.length; i < length; i += 1) {
-
-            self._debug('Meta:', meta[i].metaType.displayName);
-
-            if (meta[i].metaType.displayName.indexOf('URL') > -1) {
-              if (urlFilter(meta[i])) {
-                match.urls.push(meta[i].metaValue);
-              } else {
-                self._debug('URL:', meta[i].metaType.displayName + ' was rejected by the URL filter.');
-              }
-            }
+          if (data.getNodeResponse) {
+            meta = data.getNodeResponse.node.meta || 'undefined';
           }
 
-          if (match.urls.length) {
-            content.matches.push(match);
+          if (meta) {
+            match = {
+              text: tag.value,
+              taxoId: tag.taxoId,
+              offset: tag.instances.instance[0].offset,
+              // TODO: Is this ever not just the length of the text string?
+              length: tag.instances.instance[0].length,
+              urls: []
+            };
+
+            for (i = 0, length = meta.length; i < length; i += 1) {
+
+              self._debug('Meta:', meta[i].metaType.displayName);
+
+              if (meta[i].metaType.displayName.indexOf('URL') > -1) {
+                if (urlFilter(meta[i])) {
+                  match.urls.push(meta[i].metaValue);
+                } else {
+                  self._debug('URL:', meta[i].metaType.displayName + ' was rejected by the URL filter.');
+                }
+              }
+            }
+
+            if (match.urls.length) {
+              content.matches.push(match);
+            }
           }
         }
 
@@ -533,8 +605,19 @@ if (typeof blogsmith.missive !== 'function') {
 
         if (text) {
           outstandingCalls += 1;
+
+          // Create a container to keep track of matches
           content[i].matches = [];
+
+          text = this._normalizeHtml(text);
+
+          // Save a reference to the normalized, original text
+          content[i].text = text;
+
+          text = this._stripLinks(text);
+
           getTagsFromText.call(content[i], text);
+
         } else {
           expectedContent -= 1;
         }
@@ -653,7 +736,7 @@ if (typeof blogsmith.missive !== 'function') {
         var contentArray, newContent;
 
         // Turn the content string into an array split on each character
-        contentArray = contentItem.get().split('');
+        contentArray = contentItem.text.split('');
 
         if (contentItem.matches.length) {
           self._debug('Final report', '•', true);
