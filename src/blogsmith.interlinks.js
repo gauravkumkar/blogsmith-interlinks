@@ -59,8 +59,8 @@ if (typeof blogsmith.missive !== 'function') {
 
     // These options will be used as defaults
     options: {
-      getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
-      //getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
+      //getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
+      getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
       taxonomyApi: 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta',
       threshold: 0.0,
       matchAllEntities: true,
@@ -736,7 +736,11 @@ if (typeof blogsmith.missive !== 'function') {
         var contentArray, newContent;
 
         // Turn the content string into an array split on each character
-        contentArray = contentItem.text.split('');
+        if (contentItem.text) {
+          contentArray = contentItem.text.split('');
+        } else {
+          contentArray = [];
+        }
 
         if (contentItem.matches.length) {
           self._debug('Final report', '•', true);
@@ -747,7 +751,7 @@ if (typeof blogsmith.missive !== 'function') {
             // Use the offset to find the right position in the array to add new
             // html content
             contentArray[match.offset] = [
-              "<a class=\"interlink\" onclick=\"bN.set(\'blogsmith_interlink\', \'`\', true); bN.set(\'blogsmith_taxo_id\', \'" + match.taxoId + "\', true);\" href=",
+              "<a class=\"interlink\" onclick=\"bN.set(\'bs_intlink\', \'1\', true); bN.set(\'bs_taxo_id\', \'" + match.taxoId + "\', true);\" href=",
               match.urls[0],
               '">',
               contentArray[match.offset]
