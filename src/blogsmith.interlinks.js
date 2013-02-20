@@ -59,8 +59,8 @@ if (typeof blogsmith.missive !== 'function') {
 
     // These options will be used as defaults
     options: {
-      //getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
-      getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
+      getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
+      //getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
       taxonomyApi: 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta',
       threshold: 0.0,
       matchAllEntities: true,
@@ -176,6 +176,11 @@ if (typeof blogsmith.missive !== 'function') {
     _bindEvents: function () {
       this.element.bind('click', $.proxy(function (event) {
         event.preventDefault();
+
+        // Send a beacon call to track plugin usage
+        if (window.bN) {
+          window.bN.set('bs_intlink_generate');
+        }
 
         // Allow devs to turn on debugging from the console
         if (window.DEBUG_INTERLINKS) {
