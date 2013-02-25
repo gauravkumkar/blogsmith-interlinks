@@ -1,5 +1,5 @@
 <!--
-* Interlinks - v0.1.0 - 2013-02-20, 2:16PM EST
+* Interlinks - v0.1.0 - 2013-02-25, 3:27PM EST
 * A Blogsmith plugin for adding relevant links to internal content to Blogsmith posts.
 * https://github.com/aol/blogsmith-interlinks
 * Copyright (c) 2013 Nate Eagle and Shawn Carnell; Licensed BSD
@@ -12,6 +12,24 @@
       <script>
 
 /*global blogsmith:true, BS:true, _blog_name:true, CKEDITOR:true */
+
+/**
+ * Get properties from an object chain without incurring an error if
+ * intermediate properties don't exist.
+ */
+if (typeof getProperty !== 'function') {
+  window.getProperty = function (object, propertiesString) {
+    var split = propertiesString.split('.');
+    for (var i = 0, length = split.length; i < length; i += 1) {
+      object = object[split[i]];
+      if (object === undefined) {
+        // Can't proceed
+        break;
+      }
+    }
+    return object;
+  };
+}
 
 /**
  * Send a message to the user above the text entry area.
@@ -41,7 +59,7 @@ if (typeof blogsmith.missive !== 'function') {
 
     missive = $('<div />', {
       'class': settings['class'],
-      'text': settings['text']
+      'html': settings['text']
     }).css({
       margin: '5px 0',
       padding: '10px'
@@ -72,8 +90,8 @@ if (typeof blogsmith.missive !== 'function') {
 
     // These options will be used as defaults
     options: {
-      getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
-      //getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
+      //getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
+      getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
       taxonomyApi: 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta',
       threshold: 0.0,
       matchAllEntities: true,
@@ -421,11 +439,14 @@ if (typeof blogsmith.missive !== 'function') {
         self._debug('tagsData', tagsData);
 
         if (!tagsData.getTagsFromTextResponse.tags) {
-          self._error('Response', 'We found no interlinks to suggest.');
+          if (outstandingCalls === 0) {
+            self._error('Response', 'The API didn\'t return a tags object. Please contact <a href="mailto:central@teamaol.com">Central Engineering</a> to report the issue.');
+          }
           return;
         }
 
-        tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag;
+        //tags = tagsData.getTagsFromTextResponse.tags.matchTags.tag || {};
+        tags = window.getProperty(tagsData, 'getTagsFromTextResponse.tags.matchTags.tag');
 
         // Remove any instances of tags that are not in the body
         stripInstances = function (tags) {
