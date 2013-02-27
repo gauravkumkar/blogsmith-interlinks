@@ -1,4 +1,4 @@
-/*global blogsmith:true, BS:true, _blog_name:true, CKEDITOR:true */
+/*global blogsmith:true, BS:true, _blog_name:true, _blog_id:true, CKEDITOR:true */
 
 /**
  * Get properties from an object chain without incurring an error if
@@ -374,7 +374,7 @@ if (typeof blogsmith.missive !== 'function') {
         outgoingData = {
           platform: 'BS',
           app: blogsmith.getDomain(),
-          channel: _blog_name,
+          channel: _blog_id,
           tagger: 'T',
           title: blogsmith.getTitle(),
           body: text,

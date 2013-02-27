@@ -1,5 +1,5 @@
 <!--
-* Interlinks - v0.1.0 - 2013-02-25, 3:27PM EST
+* Interlinks - v0.1.0 - 2013-02-26, 8:29PM EST
 * A Blogsmith plugin for adding relevant links to internal content to Blogsmith posts.
 * https://github.com/aol/blogsmith-interlinks
 * Copyright (c) 2013 Nate Eagle and Shawn Carnell; Licensed BSD
@@ -11,7 +11,7 @@
 
       <script>
 
-/*global blogsmith:true, BS:true, _blog_name:true, CKEDITOR:true */
+/*global blogsmith:true, BS:true, _blog_name:true, _blog_id:true, CKEDITOR:true */
 
 /**
  * Get properties from an object chain without incurring an error if
@@ -387,7 +387,7 @@ if (typeof blogsmith.missive !== 'function') {
         outgoingData = {
           platform: 'BS',
           app: blogsmith.getDomain(),
-          channel: _blog_name,
+          channel: _blog_id,
           tagger: 'T',
           title: blogsmith.getTitle(),
           body: text,
