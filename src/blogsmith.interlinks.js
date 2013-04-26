@@ -538,7 +538,8 @@ if (typeof blogsmith.missive !== 'function') {
           127, // AOL Music
           99, // Huffpo Big News
           129, // Autoblog
-          130 // AOL Autos
+          130, // AOL Autos
+          135 // Moviefone
         ];
 
         return ($.inArray(metaTypeId, allowed) > -1);
