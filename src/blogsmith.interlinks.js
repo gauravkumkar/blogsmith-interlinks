@@ -77,8 +77,8 @@ if (typeof blogsmith.missive !== 'function') {
 
     // These options will be used as defaults
     options: {
-      //getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
-      getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
+      getTagsApi: 'http://irshield.app.aol.com/rtnt/getTagsFromText',
+      //getTagsApi: 'http://chanel-qa-d0001.cluster.aol.com:8010/rtnt/getTagsFromText',
       taxonomyApi: 'http://taxonomy-tomcat.ops.aol.com/aoltaxo/nodeinfo/meta',
       threshold: 0.0,
       matchAllEntities: true,
