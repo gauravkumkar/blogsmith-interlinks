@@ -1,5 +1,5 @@
 <!--
-* Interlinks - v0.1.0 - 2013-02-26, 8:29PM EST
+* Interlinks - v0.1.0 - 2013-05-07, 10:22AM EDT
 * A Blogsmith plugin for adding relevant links to internal content to Blogsmith posts.
 * https://github.com/aol/blogsmith-interlinks
 * Copyright (c) 2013 Nate Eagle and Shawn Carnell; Licensed BSD
@@ -143,7 +143,10 @@ if (typeof blogsmith.missive !== 'function') {
       button: $('<a>', {
         title: 'Generate interlinks for your post\'s content',
         href: '#',
-        text: 'Add Interlinks'
+        text: 'Add Interlinks',
+        attr: {
+          'data-beacon': "{\"p\": {\"intlink_generate\": \"Generate Interlinks\"}}"
+        }
       }),
 
       // An animated .gif (pronounced JIFF)
@@ -207,11 +210,6 @@ if (typeof blogsmith.missive !== 'function') {
     _bindEvents: function () {
       this.element.bind('click', $.proxy(function (event) {
         event.preventDefault();
-
-        // Send a beacon call to track plugin usage
-        if (window.bN) {
-          window.bN.set('bs_intlink_generate');
-        }
 
         // Allow devs to turn on debugging from the console
         if (window.DEBUG_INTERLINKS) {
@@ -551,7 +549,8 @@ if (typeof blogsmith.missive !== 'function') {
           127, // AOL Music
           99, // Huffpo Big News
           129, // Autoblog
-          130 // AOL Autos
+          130, // AOL Autos
+          135 // Moviefone
         ];
 
         return ($.inArray(metaTypeId, allowed) > -1);

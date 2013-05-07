@@ -130,7 +130,10 @@ if (typeof blogsmith.missive !== 'function') {
       button: $('<a>', {
         title: 'Generate interlinks for your post\'s content',
         href: '#',
-        text: 'Add Interlinks'
+        text: 'Add Interlinks',
+        attr: {
+          'data-beacon': "{\"p\": {\"intlink_generate\": \"Generate Interlinks\"}}"
+        }
       }),
 
       // An animated .gif (pronounced JIFF)
@@ -194,11 +197,6 @@ if (typeof blogsmith.missive !== 'function') {
     _bindEvents: function () {
       this.element.bind('click', $.proxy(function (event) {
         event.preventDefault();
-
-        // Send a beacon call to track plugin usage
-        if (window.bN) {
-          window.bN.set('bs_intlink_generate');
-        }
 
         // Allow devs to turn on debugging from the console
         if (window.DEBUG_INTERLINKS) {
