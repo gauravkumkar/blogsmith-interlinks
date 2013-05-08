@@ -127,6 +127,11 @@ if (typeof blogsmith.missive !== 'function') {
      */
     ui: {
 
+      colors: {
+        green: 'hsl(100, 50%, 80%)',
+        red: 'hsl(0, 100%, 80%)'
+      },
+
       button: $('<a>', {
         title: 'Generate interlinks for your post\'s content',
         href: '#',
@@ -204,6 +209,8 @@ if (typeof blogsmith.missive !== 'function') {
         } else {
           this.debug = false;
         }
+
+        this.debug = true;
 
         this._getInterlinks($.proxy(this._chooseUrls, this));
       }, this));
@@ -469,7 +476,7 @@ if (typeof blogsmith.missive !== 'function') {
           return offset1 - offset2;
         });
 
-        self._debug('Returned tags', tags, true);
+        self._debug('Returned tags', tags, 'heading');
 
         callback = function (data) {
           var tag = this;
@@ -486,19 +493,38 @@ if (typeof blogsmith.missive !== 'function') {
             // And we haven't gotten this entity already...
             if (!options.matchAllEntities || $.inArray(tag.taxoId, entities) < 0) {
               self._debug('Match:', tag);
-              self._debug('Score:', tag.score);
 
               // And it passes our threshold
               if (tag.score > options.threshold) {
+
+                self._debug(
+                  '%cScore:',
+                  tag.score,
+                  false,
+                  'background: ' + self.ui.colors.green
+                );
 
                 // Call the meta API for URLs
                 outstandingCalls += 1;
                 entities.push(tag.taxoId);
                 getMetaForTag(tag.taxoId, $.proxy(callback, tag));
+              } else {
+                self._debug(
+                  '%cScore:',
+                  tag.score,
+                  false,
+                  'background: ' + self.ui.colors.red
+                );
               }
             } else {
               self._debug('Tag:', tag);
-              self._debug('Skipped:', tag.value + ' (' + tag.taxoId + ') is already present in the returned entities array.');
+              self._debug(
+                '%cSkipped:',
+                tag.value + ' (' + tag.taxoId +
+                ') is already present in the returned entities array.',
+                false,
+                'background: ' + self.ui.colors.red
+              );
             }
           }
         }
@@ -566,7 +592,7 @@ if (typeof blogsmith.missive !== 'function') {
       receiveMetaData = function (data, content, tag) {
         var i, length, match, meta, domain;
 
-        self._debug('Meta data for', tag.value, true);
+        self._debug('Meta data for', tag.value, 'heading');
 
         try {
           data = JSON.parse(data);
@@ -599,8 +625,21 @@ if (typeof blogsmith.missive !== 'function') {
               if (meta[i].metaType.displayName.indexOf('URL') > -1) {
                 if (urlFilter(meta[i])) {
                   match.urls.push(meta[i].metaValue);
+                  self._debug(
+                    '%cURL:',
+                    meta[i].metaType.displayName +
+                    ' passed the URL filter.',
+                    false,
+                    ['background: hsl(100, 50%, 80%)']
+                  );
                 } else {
-                  self._debug('URL:', meta[i].metaType.displayName + ' was rejected by the URL filter.');
+                  self._debug(
+                    '%cURL:',
+                    meta[i].metaType.displayName +
+                    ' was rejected by the URL filter.',
+                    false,
+                    ['background: hsl(0, 100%, 80%)']
+                  );
                 }
               }
             }
@@ -768,7 +807,7 @@ if (typeof blogsmith.missive !== 'function') {
         }
 
         if (contentItem.matches.length) {
-          self._debug('Final report', '•', true);
+          self._debug('%cFinal report', '', 'heading', 'background: orange; color: white');
 
           $.each(contentItem.matches, function (i, match) {
             self._debug('Matches with allowed URLs:', match);
@@ -827,28 +866,51 @@ if (typeof blogsmith.missive !== 'function') {
      * verbose debugging output if they need to examine the inner workings of
      * the plugin.
      */
-    _debug: function (label, message, heading) {
-      var i, separator;
-      heading = heading || false;
+    _debug: function (label, message, heading, colors) {
+      var i, separator, args, string;
+
       if (!this.debug) {
         return;
       } else {
         if (window.console) {
+          args = [];
+
+          if (typeof message === 'string') {
+            string = '%cInterlinks:%c ' + label + ' ' + message;
+          } else {
+            string = '%cInterlinks:%c ' + label;
+          }
+
+          args.push(string);
+          args.push('background: hsl(200, 100%, 80%)');
+          args.push('background: transparent');
+
+          if (typeof message === 'string') {
+            if ($.isArray(colors)) {
+              $.each(colors, function (i, color) {
+                args.push(color);
+              });
+            } else if (typeof colors === 'string') {
+              args.push(colors);
+            }
+          } else {
+            args.push(message);
+          }
 
           if (heading) {
             // Match the separator to the length of the heading output
-            // TODO: fix the hardcoding of characters to labels.
-            i = 12 + label.length + 1 + message.length;
+            i = string.replace(/%c/g, '').length;
             separator = '';
             while (i) {
               separator += '¯';
               i -= 1;
             }
+
             console.log('\n' + separator);
-            console.log('Interlinks:', label, message);
+            console.log.apply(console, args);
             console.log('\n' + separator);
           } else {
-            console.log('Interlinks:', label, message);
+            console.log.apply(console, args);
           }
         }
       }
